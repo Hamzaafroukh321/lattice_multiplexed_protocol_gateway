@@ -1,9 +1,13 @@
 ﻿#pragma once
 
 #include "lattice/types.hpp"
+#include "lattice/error.hpp"
 
 #include <deque>
 #include <optional>
+#include <span>
+#include <string>
+#include <utility>
 
 namespace lattice {
 
@@ -25,6 +29,28 @@ class MemoryTransport {
 struct MemoryPipe {
   MemoryTransport left_to_right;
   MemoryTransport right_to_left;
+};
+
+class UnixTransport {
+ public:
+  UnixTransport() = default;
+  explicit UnixTransport(int fd);
+  UnixTransport(const UnixTransport&) = delete;
+  UnixTransport& operator=(const UnixTransport&) = delete;
+  UnixTransport(UnixTransport&& other) noexcept;
+  UnixTransport& operator=(UnixTransport&& other) noexcept;
+  ~UnixTransport();
+
+  [[nodiscard]] static Result<UnixTransport> connect_path(const std::string& path);
+  [[nodiscard]] static Result<std::pair<UnixTransport, UnixTransport>> pair_for_test();
+
+  [[nodiscard]] Result<void> write(std::span<const std::uint8_t> bytes);
+  [[nodiscard]] Result<Bytes> read_some(std::size_t max_bytes);
+  void close();
+  [[nodiscard]] bool valid() const { return fd_ >= 0; }
+
+ private:
+  int fd_{-1};
 };
 
 }  // namespace lattice

@@ -136,6 +136,39 @@ static void AsyncResultAfterResetDropped() {
   }
 }
 
+static void PluginDispatchCanRunOnDeterministicExecutor() {
+  DeterministicExecutor executor(4U, 2U);
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry(), &executor);
+  handshake(left, right);
+  auto opened = left.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(opened);
+  REQUIRE_OK(right.receive(opened.value().second[0], false));
+  auto sent = left.send(opened.value().first, Bytes{'a'});
+  REQUIRE_OK(sent);
+  REQUIRE_OK(right.receive(sent.value()[0], false));
+
+  bool delivered = false;
+  bool echoed_before_drain = false;
+  for (const auto& event : right.events()) {
+    delivered = delivered || event.kind == ConnectionEvent::Kind::message_delivered;
+    echoed_before_drain = echoed_before_drain ||
+                          event.kind == ConnectionEvent::Kind::plugin_response;
+  }
+  CHECK(delivered);
+  CHECK(!echoed_before_drain);
+  CHECK(executor.queued() == 1U);
+  REQUIRE_OK(executor.drain_all());
+
+  bool echoed_after_drain = false;
+  for (const auto& event : right.events()) {
+    echoed_after_drain = echoed_after_drain ||
+                         (event.kind == ConnectionEvent::Kind::plugin_response &&
+                          event.payload == Bytes({'e', 'c', 'h', 'o', ':', 'a'}));
+  }
+  CHECK(echoed_after_drain);
+}
+
 void register_multiplex_tests() {
   add_test("TwoMemoryTransportsCompleteHello", &TwoMemoryTransportsCompleteHello);
   add_test("TwoFragmentMessageDeliveryThroughEchoPlugin", &TwoFragmentMessageDeliveryThroughEchoPlugin);
@@ -144,4 +177,6 @@ void register_multiplex_tests() {
   add_test("PingProducesPongAndEvent", &PingProducesPongAndEvent);
   add_test("ResumeTranscriptMismatchRejects", &ResumeTranscriptMismatchRejects);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
+  add_test("PluginDispatchCanRunOnDeterministicExecutor",
+           &PluginDispatchCanRunOnDeterministicExecutor);
 }

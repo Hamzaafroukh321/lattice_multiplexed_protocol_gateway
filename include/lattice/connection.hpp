@@ -1,6 +1,7 @@
 #pragma once
 
 #include "lattice/channel.hpp"
+#include "lattice/executor.hpp"
 #include "lattice/plugin.hpp"
 #include "lattice/replay.hpp"
 #include "lattice/scheduler.hpp"
@@ -58,7 +59,8 @@ struct ConnectionEvent {
 
 class ConnectionEngine {
  public:
-  ConnectionEngine(LocalPolicy policy, PluginRegistry registry);
+  ConnectionEngine(LocalPolicy policy, PluginRegistry registry,
+                   DeterministicExecutor* executor = nullptr);
 
   [[nodiscard]] ConnectionState state() const { return state_; }
   [[nodiscard]] const std::optional<CapabilitySet>& capabilities() const { return capabilities_; }
@@ -98,6 +100,7 @@ class ConnectionEngine {
 
   LocalPolicy policy_;
   PluginRegistry registry_;
+  DeterministicExecutor* executor_{nullptr};
   FrameCodec codec_;
   ConnectionState state_{ConnectionState::created};
   std::optional<CapabilitySet> capabilities_;

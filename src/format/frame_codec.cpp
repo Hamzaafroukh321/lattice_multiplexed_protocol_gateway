@@ -7,6 +7,13 @@
 #include <limits>
 #include <sstream>
 
+#if defined(__x86_64__) || defined(_M_X64)
+#if defined(_WIN32)
+#include <intrin.h>
+#endif
+#include <nmmintrin.h>
+#endif
+
 namespace lattice {
 namespace {
 
@@ -112,6 +119,38 @@ void append_u32(Bytes& out, std::uint32_t value) {
   return DecodeEvent{DecodeStatus::error, std::nullopt, std::move(error)};
 }
 
+[[nodiscard]] bool cpu_supports_sse42() {
+#if (defined(__x86_64__) || defined(_M_X64)) && defined(_WIN32)
+  int registers[4] = {};
+  __cpuid(registers, 1);
+  return (registers[2] & (1 << 20)) != 0;
+#elif (defined(__x86_64__) || defined(_M_X64)) && (defined(__clang__) || defined(__GNUC__))
+  return __builtin_cpu_supports("sse4.2");
+#else
+  return false;
+#endif
+}
+
+#if (defined(__x86_64__) || defined(_M_X64)) && (defined(__clang__) || defined(__GNUC__))
+[[nodiscard]] __attribute__((target("sse4.2"))) std::uint32_t crc32c_sse42(
+    std::span<const std::uint8_t> bytes) {
+  std::uint64_t crc = 0xFFFFFFFFU;
+  std::size_t cursor = 0;
+  while (bytes.size() - cursor >= 8U) {
+    std::uint64_t block = 0;
+    std::memcpy(&block, bytes.data() + cursor, sizeof(block));
+    crc = _mm_crc32_u64(crc, block);
+    cursor += 8U;
+  }
+  std::uint32_t crc32 = static_cast<std::uint32_t>(crc);
+  while (cursor < bytes.size()) {
+    crc32 = _mm_crc32_u8(crc32, bytes[cursor]);
+    ++cursor;
+  }
+  return ~crc32;
+}
+#endif
+
 }  // namespace
 
 std::string Error::stable_code() const {
@@ -171,21 +210,50 @@ Result<std::uint32_t> read_u32_be(std::span<const std::uint8_t> bytes, std::size
 }
 
 std::uint32_t crc32c(std::span<const std::uint8_t> bytes) {
-  static const std::array<std::uint32_t, 256> table = [] {
-    std::array<std::uint32_t, 256> out{};
-    for (std::uint32_t i = 0; i < out.size(); ++i) {
+#if (defined(__x86_64__) || defined(_M_X64)) && (defined(__clang__) || defined(__GNUC__))
+  static const bool use_sse42 = cpu_supports_sse42();
+  if (use_sse42) {
+    return crc32c_sse42(bytes);
+  }
+#endif
+  static const std::array<std::array<std::uint32_t, 256>, 8> table = [] {
+    std::array<std::array<std::uint32_t, 256>, 8> out{};
+    for (std::uint32_t i = 0; i < out[0].size(); ++i) {
       std::uint32_t crc = i;
       for (int bit = 0; bit < 8; ++bit) {
         const std::uint32_t mask = static_cast<std::uint32_t>(-(static_cast<int>(crc & 1U)));
         crc = (crc >> 1U) ^ (0x82F63B78U & mask);
       }
-      out[i] = crc;
+      out[0][i] = crc;
+    }
+    for (std::size_t slice = 1; slice < out.size(); ++slice) {
+      for (std::uint32_t i = 0; i < out[slice].size(); ++i) {
+        const std::uint32_t previous = out[slice - 1U][i];
+        out[slice][i] = out[0][previous & 0xFFU] ^ (previous >> 8U);
+      }
     }
     return out;
   }();
   std::uint32_t crc = 0xFFFFFFFFU;
-  for (std::uint8_t byte : bytes) {
-    crc = table[(crc ^ byte) & 0xFFU] ^ (crc >> 8U);
+  std::size_t cursor = 0;
+  while (bytes.size() - cursor >= 8U) {
+    std::uint64_t block = 0;
+    std::memcpy(&block, bytes.data() + cursor, sizeof(block));
+    crc ^= static_cast<std::uint32_t>(block & 0xFFFFFFFFULL);
+    const std::uint32_t high = static_cast<std::uint32_t>(block >> 32U);
+    crc = table[7][crc & 0xFFU] ^
+          table[6][(crc >> 8U) & 0xFFU] ^
+          table[5][(crc >> 16U) & 0xFFU] ^
+          table[4][(crc >> 24U) & 0xFFU] ^
+          table[3][high & 0xFFU] ^
+          table[2][(high >> 8U) & 0xFFU] ^
+          table[1][(high >> 16U) & 0xFFU] ^
+          table[0][(high >> 24U) & 0xFFU];
+    cursor += 8U;
+  }
+  while (cursor < bytes.size()) {
+    crc = table[0][(crc ^ bytes[cursor]) & 0xFFU] ^ (crc >> 8U);
+    ++cursor;
   }
   return ~crc;
 }
@@ -219,8 +287,8 @@ Result<std::pair<std::uint32_t, std::size_t>> decode_uleb128(
     const std::uint8_t byte = bytes[offset + i];
     value |= static_cast<std::uint32_t>(byte & 0x7FU) << shift;
     if ((byte & 0x80U) == 0U) {
-      auto canonical = encode_uleb128(value);
-      if (!canonical || canonical.value().size() != i + 1U) {
+      if ((i == 4U && (byte & 0xF0U) != 0U) ||
+          (i > 0U && value < (std::uint32_t{1} << (7U * static_cast<std::uint32_t>(i))))) {
         return make_error(ErrorScope::connection, ErrorCode::varint_non_canonical,
                           CloseAction::close_connection, "non-minimal ULEB128");
       }
@@ -374,6 +442,9 @@ Result<Bytes> FrameCodec::encode(const Frame& frame) const {
 std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, bool eof) {
   buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
   std::vector<DecodeEvent> events;
+  if (!bytes.empty()) {
+    events.reserve(std::max<std::size_t>(1U, bytes.size() / 1024U));
+  }
   std::size_t consumed = 0;
   for (;;) {
     const std::size_t remaining = buffer_.size() - consumed;
@@ -397,8 +468,12 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
 
     const std::span<const std::uint8_t> view(buffer_.data() + static_cast<std::ptrdiff_t>(consumed),
                                              remaining);
-    const auto magic = read_u32_be(view, 0);
-    if (!magic || magic.value() != kLtxMagic) {
+    const std::uint32_t magic =
+        (static_cast<std::uint32_t>(view[0]) << 24U) |
+        (static_cast<std::uint32_t>(view[1]) << 16U) |
+        (static_cast<std::uint32_t>(view[2]) << 8U) |
+        static_cast<std::uint32_t>(view[3]);
+    if (magic != kLtxMagic) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::bad_magic,
                                               CloseAction::close_connection,
                                               "LTX1 magic mismatch")));
@@ -437,12 +512,11 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
         (static_cast<std::uint32_t>(view[9]) << 8U) |
         static_cast<std::uint32_t>(view[10]);
     const std::uint8_t generation = view[11];
-    const auto frame_seq = read_u32_be(view, 12);
-    if (!frame_seq) {
-      events.push_back(error_event(frame_seq.error()));
-      buffer_.clear();
-      return events;
-    }
+    const std::uint32_t frame_seq =
+        (static_cast<std::uint32_t>(view[12]) << 24U) |
+        (static_cast<std::uint32_t>(view[13]) << 16U) |
+        (static_cast<std::uint32_t>(view[14]) << 8U) |
+        static_cast<std::uint32_t>(view[15]);
     const auto payload_len = decode_uleb128(view, 16);
     if (!payload_len) {
       if (payload_len.error().code == ErrorCode::need_more_data && !eof) {
@@ -499,33 +573,35 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       }
       return events;
     }
-    const auto expected_crc = read_u32_be(view, without_crc);
-    if (!expected_crc) {
-      events.push_back(error_event(expected_crc.error()));
-      buffer_.clear();
-      return events;
-    }
+    const std::uint32_t expected_crc =
+        (static_cast<std::uint32_t>(view[without_crc]) << 24U) |
+        (static_cast<std::uint32_t>(view[without_crc + 1U]) << 16U) |
+        (static_cast<std::uint32_t>(view[without_crc + 2U]) << 8U) |
+        static_cast<std::uint32_t>(view[without_crc + 3U]);
     const std::uint32_t actual_crc = crc32c(view.subspan(0, without_crc));
-    if (actual_crc != expected_crc.value()) {
+    if (actual_crc != expected_crc) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::crc_mismatch,
                                               CloseAction::close_connection,
                                               "CRC32C mismatch")));
       buffer_.clear();
       return events;
     }
-    const auto extensions = parse_extensions(
-        view.subspan(16U + varint_bytes, ext_len));
-    if (!extensions) {
-      events.push_back(error_event(extensions.error()));
-      buffer_.clear();
-      return events;
+    std::vector<Extension> extensions;
+    if (ext_len > 0U) {
+      auto parsed_extensions = parse_extensions(view.subspan(16U + varint_bytes, ext_len));
+      if (!parsed_extensions) {
+        events.push_back(error_event(parsed_extensions.error()));
+        buffer_.clear();
+        return events;
+      }
+      extensions = parsed_extensions.take_value();
     }
     Frame frame;
     frame.type = static_cast<FrameType>(raw_type);
     frame.flags = flags;
     frame.channel = ChannelId{channel_no, generation};
-    frame.frame_seq = frame_seq.value();
-    frame.extensions = extensions.value();
+    frame.frame_seq = frame_seq;
+    frame.extensions = std::move(extensions);
     frame.payload.assign(view.begin() + static_cast<std::ptrdiff_t>(header_total),
                          view.begin() + static_cast<std::ptrdiff_t>(header_total + payload_size));
     events.push_back(DecodeEvent{DecodeStatus::frame, std::move(frame), std::nullopt});

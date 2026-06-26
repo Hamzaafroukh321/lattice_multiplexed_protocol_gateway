@@ -24,6 +24,7 @@ add_library(lattice_core
   src/plugin/registry.cpp
   src/gateway/gateway.cpp
   src/transport/memory_transport.cpp
+  src/transport/unix_transport.cpp
   src/connection/engine.cpp)
 target_include_directories(lattice_core PUBLIC
   $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include>
@@ -51,6 +52,7 @@ add_executable(lattice_tests
   tests/unit/replay_tests.cpp
   tests/unit/scheduler_tests.cpp
   tests/unit/trace_tests.cpp
+  tests/unit/transport_tests.cpp
   tests/integration/handshake.cpp
   tests/integration/multiplex.cpp
   tests/test_main.cpp)

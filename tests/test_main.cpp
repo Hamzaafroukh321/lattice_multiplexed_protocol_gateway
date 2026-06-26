@@ -29,6 +29,7 @@ void register_plugin_tests();
 void register_replay_tests();
 void register_scheduler_tests();
 void register_trace_tests();
+void register_transport_tests();
 void register_handshake_tests();
 void register_multiplex_tests();
 
@@ -46,6 +47,7 @@ int main() {
   register_replay_tests();
   register_scheduler_tests();
   register_trace_tests();
+  register_transport_tests();
   register_handshake_tests();
   register_multiplex_tests();
 

@@ -2,7 +2,7 @@
 
 Lattice is organized as a small set of deterministic modules.
 
-`FrameCodec` owns incremental input bytes and yields validated `Frame` values only after magic, reserved flags, payload length, extensions, size limits, and CRC32C pass.
+`FrameCodec` owns incremental input bytes and yields validated `Frame` values only after magic, reserved flags, payload length, extensions, size limits, and CRC32C pass. CRC32C uses a cached SSE4.2 fast path when available and falls back to portable slicing-by-8 tables.
 
 `Negotiator` decodes HELLO payloads and freezes one immutable `CapabilitySet`. Limits are the minimum of both peers. Required features must be common. Plugin families must match by family ID and schema hash.
 
@@ -14,11 +14,13 @@ Lattice is organized as a small set of deterministic modules.
 
 `PluginRegistry` maps negotiated family IDs to static factories. The built-in echo plugin receives only completed messages.
 
-`PluginLease` pins plugin dispatch lifetime. Unregister marks a family draining and returns `WouldBlock` until active leases have released.
+`PluginLease` pins plugin dispatch lifetime. Unregister marks a family draining and returns `WouldBlock` until active or queued dispatch leases have released.
 
-`Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash. Routes carry source channel, destination channel, and plugin family IDs. Optional pure translators may transform payloads before destination limits are revalidated.
+`Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash. Routes carry source channel, destination channel, and plugin family IDs. Registered source routes can produce explicit forwarded-message objects. Optional pure translators may transform payloads across asymmetric schema hashes before destination limits are revalidated.
 
-`DeterministicExecutor` provides bounded task admission and deterministic task draining for tests and future loop/plugin sharding.
+`DeterministicExecutor` provides bounded task admission and deterministic task draining for tests, plugin dispatch, and future loop sharding.
+
+`UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. Windows builds return stable transport-scoped unsupported errors for those operations.
 
 `OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels.
 

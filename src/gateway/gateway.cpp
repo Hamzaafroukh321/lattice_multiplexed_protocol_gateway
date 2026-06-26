@@ -23,8 +23,14 @@ bool GatewayPolicy::may_forward(const CapabilitySet& from, const CapabilitySet& 
                                   [family_id](const PluginDescriptor& descriptor) {
                                     return descriptor.family_id == family_id;
                                   });
-  return from_it != from.plugins.end() && to_it != to.plugins.end() &&
-         from_it->schema_hash == to_it->schema_hash;
+  if (from_it == from.plugins.end() || to_it == to.plugins.end()) {
+    return false;
+  }
+  return from_it->schema_hash == to_it->schema_hash || has_translator(family_id);
+}
+
+bool GatewayPolicy::has_translator(std::uint32_t family_id) const {
+  return translators_.find(family_id) != translators_.end();
 }
 
 Result<void> GatewayPolicy::add_translator(std::uint32_t family_id, Translator translator) {
@@ -61,7 +67,20 @@ Result<GatewayRoute> Gateway::create_route(ChannelId source, ChannelId destinati
   route.source = source;
   route.destination = destination;
   route.family_id = family_id;
+  routes_[route.id] = route;
   return route;
+}
+
+Result<GatewayRoute> Gateway::find_route(ChannelId source) const {
+  const auto it = std::find_if(routes_.begin(), routes_.end(),
+                               [source](const auto& entry) {
+                                 return entry.second.source == source;
+                               });
+  if (it == routes_.end()) {
+    return make_error(ErrorScope::channel, ErrorCode::illegal_state, CloseAction::reject_message,
+                      "gateway route source is not registered");
+  }
+  return it->second;
 }
 
 Result<Bytes> Gateway::forward(const CapabilitySet& from, const CapabilitySet& to,
@@ -72,6 +91,26 @@ Result<Bytes> Gateway::forward(const CapabilitySet& from, const CapabilitySet& t
                       "gateway route is not initialized");
   }
   return translate(from, to, route.family_id, payload);
+}
+
+Result<GatewayForwardedMessage> Gateway::bridge_message(
+    const CapabilitySet& from, const CapabilitySet& to, ChannelId source,
+    std::span<const std::uint8_t> payload) const {
+  auto route = find_route(source);
+  if (!route) {
+    return route.error();
+  }
+  auto translated = forward(from, to, route.value(), payload);
+  if (!translated) {
+    return translated.error();
+  }
+  GatewayForwardedMessage message;
+  message.route_id = route.value().id;
+  message.source = route.value().source;
+  message.destination = route.value().destination;
+  message.family_id = route.value().family_id;
+  message.payload = translated.take_value();
+  return message;
 }
 
 Result<Bytes> Gateway::translate(const CapabilitySet& from, const CapabilitySet& to,

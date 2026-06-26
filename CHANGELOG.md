@@ -10,3 +10,7 @@
 - Added gateway routes, typed translators, destination limit revalidation, and deterministic bounded executor primitives.
 - Added a frame decode benchmark and removed O(n^2) contiguous decode buffer erasure.
 - Enforced required-extension compatibility rejection while preserving optional unknown extensions.
+- Added a POSIX Unix transport adapter with portable Windows unsupported errors and transport tests.
+- Added gateway registered-route bridging and typed asymmetric schema translation.
+- Added executor-backed plugin dispatch in `ConnectionEngine`.
+- Added cached SSE4.2 CRC32C acceleration with portable slicing-by-8 fallback; release frame decode now exceeds the MVP throughput target in this environment.

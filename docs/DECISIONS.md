@@ -26,12 +26,12 @@ Validation: `SchemaHashMismatchRejectsOpen` and gateway policy reject schema mis
 
 ## ADR-0003: Portable Memory Transport As The Verified Path
 
-Context: The MVP permits memory or Unix transports, while this environment is Windows and lacks a local C++ toolchain.
+Context: The MVP permits memory or Unix transports, while this environment is Windows for verification and POSIX Unix-domain sockets are not available at runtime.
 
-Decision: Implement deterministic memory transport and leave Unix socket serve/bridge commands as documented partial-result behavior.
+Decision: Implement deterministic memory transport and a POSIX Unix-domain adapter. Windows builds expose the same API but return stable transport errors for Unix socket operations. Unix socket serve/bridge CLI lifecycle remains a later endpoint-integration task.
 
 Alternatives considered: Windows named pipes or a stub that reports success. Reporting success would be misleading; named pipes are outside the spec's main platform.
 
-Consequences: Local deterministic tests can exercise protocol state without kernel sockets once a compiler is present. Unix adapter remains open work.
+Consequences: Protocol correctness can be tested without OS socket timing, and POSIX hosts can exercise `UnixTransport::pair_for_test` and `connect_path`. Full CLI bridge behavior still needs endpoint lifecycle tests.
 
-Validation: `TwoMemoryTransportsCompleteHello` covers the memory path.
+Validation: `TwoMemoryTransportsCompleteHello` covers the memory path. `UnixTransportPairRoundTripOrPortableError` covers POSIX round trip or Windows unsupported behavior.

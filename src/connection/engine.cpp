@@ -87,9 +87,11 @@ Result<ResumeRequest> decode_resume_payload(std::span<const std::uint8_t> payloa
   return request;
 }
 
-ConnectionEngine::ConnectionEngine(LocalPolicy policy, PluginRegistry registry)
+ConnectionEngine::ConnectionEngine(LocalPolicy policy, PluginRegistry registry,
+                                   DeterministicExecutor* executor)
     : policy_(policy),
       registry_(std::move(registry)),
+      executor_(executor),
       codec_(FrameLimits{policy.max_frame, 4096U}),
       replay_(policy.replay_window),
       scheduler_(policy.connection_window) {}
@@ -539,16 +541,42 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_data(const Frame& frame) {
   if (!plugin) {
     return plugin.error();
   }
+  const std::uint64_t token = next_plugin_token_++;
+  const std::uint32_t sequence = completed.sequence;
+  const std::uint32_t family_id = family.value();
+  if (executor_ != nullptr) {
+    auto lease = std::make_shared<PluginLease>(plugin.take_value());
+    const std::uint32_t shard = executor_->shards() == 0U ? 0U : frame.channel.number % executor_->shards();
+    auto submitted = executor_->submit(shard, [this, lease, completed = std::move(completed),
+                                               token, channel = frame.channel, sequence,
+                                               family_id]() mutable -> Result<void> {
+      auto response = (*lease)->handle(completed);
+      if (!response) {
+        return response.error();
+      }
+      PluginCompletion completion;
+      completion.token = token;
+      completion.channel = channel;
+      completion.sequence = sequence;
+      completion.family_id = family_id;
+      completion.response = response.take_value();
+      return complete_plugin(std::move(completion));
+    });
+    if (!submitted) {
+      return submitted.error();
+    }
+    return std::vector<Bytes>{};
+  }
   auto response = plugin.value()->handle(completed);
   if (!response) {
     return response.error();
   }
   PluginCompletion completion;
-  completion.token = next_plugin_token_++;
+  completion.token = token;
   completion.channel = frame.channel;
-  completion.sequence = completed.sequence;
-  completion.family_id = family.value();
-  completion.response = response.value();
+  completion.sequence = sequence;
+  completion.family_id = family_id;
+  completion.response = response.take_value();
   auto applied = complete_plugin(std::move(completion));
   if (!applied) {
     return applied.error();
