@@ -95,11 +95,35 @@ int probe_memory() {
   return 0;
 }
 
+int fixture_memory_hello() {
+  lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
+  lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
+  auto left_hello = left.start();
+  auto right_hello = right.start();
+  if (!left_hello || !right_hello) {
+    std::cerr << "lattice: failed to emit fixture HELLO\n";
+    return 10;
+  }
+  lattice::TraceLog log;
+  log.record(lattice::TraceEvent{0U, lattice::TraceKind::transport_bytes, "left.hello",
+                                 left_hello.value()[0]});
+  log.record(lattice::TraceEvent{0U, lattice::TraceKind::transport_bytes, "right.hello",
+                                 right_hello.value()[0]});
+  auto serialized = log.serialize();
+  if (!serialized) {
+    std::cerr << serialized.error().stable_code() << ": " << serialized.error().detail << '\n';
+    return 3;
+  }
+  std::cout << serialized.value();
+  return 0;
+}
+
 void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
             << "  lattice dump <file>\n"
-            << "  lattice replay <trace-file>\n";
+            << "  lattice replay <trace-file>\n"
+            << "  lattice fixture --memory-hello\n";
 }
 
 }  // namespace
@@ -118,6 +142,9 @@ int main(int argc, char** argv) {
   }
   if (command == "replay" && argc == 3) {
     return replay_trace(argv[2]);
+  }
+  if (command == "fixture" && argc == 3 && std::string(argv[2]) == "--memory-hello") {
+    return fixture_memory_hello();
   }
   if (command == "serve" || command == "bridge") {
     std::cerr << "lattice: Unix-socket serve/bridge is not available in this portable build\n";

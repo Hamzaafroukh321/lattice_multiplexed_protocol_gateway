@@ -17,3 +17,4 @@
 - Added canonical trace replay verification summaries to the library and `lattice replay`.
 - Added PONG deadline liveness timeout after idle keepalive PINGs.
 - Added in-process RESUME continuation that returns exact retained encoded frames from the requested sequence.
+- Added `lattice fixture --memory-hello` and a checked-in LTX/1 memory HELLO compatibility fixture.

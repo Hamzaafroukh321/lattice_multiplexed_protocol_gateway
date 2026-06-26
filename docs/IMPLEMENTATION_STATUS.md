@@ -18,7 +18,7 @@ LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered s
 
 Next source tickets:
 
-- Add long-running sequence wrap, generation wrap, backpressure, allocation-failure, and compatibility fixtures.
+- Add long-running sequence wrap, generation wrap, backpressure, and allocation-failure fixtures.
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
@@ -40,7 +40,8 @@ Next source tickets:
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
-- CLI `probe`, `dump`, and canonical `replay` verification commands plus fuzz smoke targets.
+- CLI `probe`, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes.
 
 ## In Progress Modules
 
