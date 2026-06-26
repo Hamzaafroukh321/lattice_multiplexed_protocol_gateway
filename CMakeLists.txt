@@ -36,6 +36,11 @@ target_link_libraries(lattice PRIVATE lattice_core)
 lattice_apply_warnings(lattice)
 lattice_apply_sanitizers(lattice)
 
+add_executable(lattice_bench tools/lattice_bench.cpp)
+target_link_libraries(lattice_bench PRIVATE lattice_core)
+lattice_apply_warnings(lattice_bench)
+lattice_apply_sanitizers(lattice_bench)
+
 add_executable(lattice_tests
   tests/unit/frame_tests.cpp
   tests/unit/channel_tests.cpp

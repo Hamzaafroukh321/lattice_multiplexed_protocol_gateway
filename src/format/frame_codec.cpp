@@ -1,6 +1,7 @@
 ﻿#include "lattice/frame.hpp"
 
 #include <algorithm>
+#include <array>
 #include <cstring>
 #include <iomanip>
 #include <limits>
@@ -158,13 +159,21 @@ Result<std::uint32_t> read_u32_be(std::span<const std::uint8_t> bytes, std::size
 }
 
 std::uint32_t crc32c(std::span<const std::uint8_t> bytes) {
+  static const std::array<std::uint32_t, 256> table = [] {
+    std::array<std::uint32_t, 256> out{};
+    for (std::uint32_t i = 0; i < out.size(); ++i) {
+      std::uint32_t crc = i;
+      for (int bit = 0; bit < 8; ++bit) {
+        const std::uint32_t mask = static_cast<std::uint32_t>(-(static_cast<int>(crc & 1U)));
+        crc = (crc >> 1U) ^ (0x82F63B78U & mask);
+      }
+      out[i] = crc;
+    }
+    return out;
+  }();
   std::uint32_t crc = 0xFFFFFFFFU;
   for (std::uint8_t byte : bytes) {
-    crc ^= byte;
-    for (int bit = 0; bit < 8; ++bit) {
-      const std::uint32_t mask = static_cast<std::uint32_t>(-(static_cast<int>(crc & 1U)));
-      crc = (crc >> 1U) ^ (0x82F63B78U & mask);
-    }
+    crc = table[(crc ^ byte) & 0xFFU] ^ (crc >> 8U);
   }
   return ~crc;
 }
@@ -349,21 +358,30 @@ Result<Bytes> FrameCodec::encode(const Frame& frame) const {
 std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, bool eof) {
   buffer_.insert(buffer_.end(), bytes.begin(), bytes.end());
   std::vector<DecodeEvent> events;
+  std::size_t consumed = 0;
   for (;;) {
-    if (buffer_.size() < kFixedPrefixBytes) {
-      if (eof && !buffer_.empty()) {
+    const std::size_t remaining = buffer_.size() - consumed;
+    if (remaining < kFixedPrefixBytes) {
+      if (eof && remaining > 0U) {
         events.push_back(error_event(make_error(ErrorScope::connection,
                                                 ErrorCode::truncated_frame,
                                                 CloseAction::close_connection,
                                                 "EOF before fixed prefix")));
         buffer_.clear();
       } else {
-        events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        if (consumed > 0U) {
+          buffer_.erase(buffer_.begin(), buffer_.begin() + static_cast<std::ptrdiff_t>(consumed));
+        }
+        if (events.empty()) {
+          events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        }
       }
       return events;
     }
 
-    const auto magic = read_u32_be(buffer_, 0);
+    const std::span<const std::uint8_t> view(buffer_.data() + static_cast<std::ptrdiff_t>(consumed),
+                                             remaining);
+    const auto magic = read_u32_be(view, 0);
     if (!magic || magic.value() != kLtxMagic) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::bad_magic,
                                               CloseAction::close_connection,
@@ -371,7 +389,7 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       buffer_.clear();
       return events;
     }
-    const std::uint8_t raw_type = buffer_[4];
+    const std::uint8_t raw_type = view[4];
     if (!known_frame_type(raw_type)) {
       events.push_back(error_event(make_error(ErrorScope::connection,
                                               ErrorCode::unsupported_frame_type,
@@ -380,7 +398,7 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       buffer_.clear();
       return events;
     }
-    const std::uint8_t flags = buffer_[5];
+    const std::uint8_t flags = view[5];
     if (flags != 0U) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::reserved_flags,
                                               CloseAction::close_connection,
@@ -389,8 +407,8 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       return events;
     }
     const std::uint16_t ext_len =
-        static_cast<std::uint16_t>((static_cast<std::uint16_t>(buffer_[6]) << 8U) |
-                                   static_cast<std::uint16_t>(buffer_[7]));
+        static_cast<std::uint16_t>((static_cast<std::uint16_t>(view[6]) << 8U) |
+                                   static_cast<std::uint16_t>(view[7]));
     if (ext_len > limits_.max_header) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::header_too_large,
                                               CloseAction::close_connection,
@@ -399,20 +417,25 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       return events;
     }
     const std::uint32_t channel_no =
-        (static_cast<std::uint32_t>(buffer_[8]) << 16U) |
-        (static_cast<std::uint32_t>(buffer_[9]) << 8U) |
-        static_cast<std::uint32_t>(buffer_[10]);
-    const std::uint8_t generation = buffer_[11];
-    const auto frame_seq = read_u32_be(buffer_, 12);
+        (static_cast<std::uint32_t>(view[8]) << 16U) |
+        (static_cast<std::uint32_t>(view[9]) << 8U) |
+        static_cast<std::uint32_t>(view[10]);
+    const std::uint8_t generation = view[11];
+    const auto frame_seq = read_u32_be(view, 12);
     if (!frame_seq) {
       events.push_back(error_event(frame_seq.error()));
       buffer_.clear();
       return events;
     }
-    const auto payload_len = decode_uleb128(buffer_, 16);
+    const auto payload_len = decode_uleb128(view, 16);
     if (!payload_len) {
       if (payload_len.error().code == ErrorCode::need_more_data && !eof) {
-        events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        if (consumed > 0U) {
+          buffer_.erase(buffer_.begin(), buffer_.begin() + static_cast<std::ptrdiff_t>(consumed));
+        }
+        if (events.empty()) {
+          events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        }
         return events;
       }
       Error error = payload_len.error();
@@ -444,24 +467,29 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       buffer_.clear();
       return events;
     }
-    if (buffer_.size() < total) {
+    if (remaining < total) {
       if (eof) {
         events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::truncated_frame,
                                                 CloseAction::close_connection,
                                                 "EOF inside frame")));
         buffer_.clear();
       } else {
-        events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        if (consumed > 0U) {
+          buffer_.erase(buffer_.begin(), buffer_.begin() + static_cast<std::ptrdiff_t>(consumed));
+        }
+        if (events.empty()) {
+          events.push_back(DecodeEvent{DecodeStatus::need_more, std::nullopt, std::nullopt});
+        }
       }
       return events;
     }
-    const auto expected_crc = read_u32_be(buffer_, without_crc);
+    const auto expected_crc = read_u32_be(view, without_crc);
     if (!expected_crc) {
       events.push_back(error_event(expected_crc.error()));
       buffer_.clear();
       return events;
     }
-    const std::uint32_t actual_crc = crc32c(std::span<const std::uint8_t>(buffer_.data(), without_crc));
+    const std::uint32_t actual_crc = crc32c(view.subspan(0, without_crc));
     if (actual_crc != expected_crc.value()) {
       events.push_back(error_event(make_error(ErrorScope::connection, ErrorCode::crc_mismatch,
                                               CloseAction::close_connection,
@@ -470,8 +498,7 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
       return events;
     }
     const auto extensions = parse_extensions(
-        std::span<const std::uint8_t>(buffer_.data() + static_cast<std::ptrdiff_t>(16U + varint_bytes),
-                                      ext_len));
+        view.subspan(16U + varint_bytes, ext_len));
     if (!extensions) {
       events.push_back(error_event(extensions.error()));
       buffer_.clear();
@@ -483,11 +510,12 @@ std::vector<DecodeEvent> FrameCodec::feed(std::span<const std::uint8_t> bytes, b
     frame.channel = ChannelId{channel_no, generation};
     frame.frame_seq = frame_seq.value();
     frame.extensions = extensions.value();
-    frame.payload.assign(buffer_.begin() + static_cast<std::ptrdiff_t>(header_total),
-                         buffer_.begin() + static_cast<std::ptrdiff_t>(header_total + payload_size));
+    frame.payload.assign(view.begin() + static_cast<std::ptrdiff_t>(header_total),
+                         view.begin() + static_cast<std::ptrdiff_t>(header_total + payload_size));
     events.push_back(DecodeEvent{DecodeStatus::frame, std::move(frame), std::nullopt});
-    buffer_.erase(buffer_.begin(), buffer_.begin() + static_cast<std::ptrdiff_t>(total));
-    if (buffer_.empty()) {
+    consumed += total;
+    if (consumed == buffer_.size()) {
+      buffer_.clear();
       return events;
     }
   }

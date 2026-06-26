@@ -8,3 +8,4 @@
 - Added ACK payload helpers, resume-window checks, generation-tagged timer wheel, bounded outbound scheduler, and deterministic trace parser.
 - Integrated engine ACK/PING/PONG/RESUME timeout paths, scheduler-backed emission, plugin completion tokens, and quiescent plugin leases.
 - Added gateway routes, typed translators, destination limit revalidation, and deterministic bounded executor primitives.
+- Added a frame decode benchmark and removed O(n^2) contiguous decode buffer erasure.

@@ -21,7 +21,7 @@
 | LAT-R017 | 11 | CLI dump/replay/probe command surface | `tools/lattice.cpp` | `lattice.exe probe --memory` passed | Verified | pending |
 | LAT-R018 | 13,21 | Multi-connection loop sharding and bounded plugin executor | `include/lattice/executor.hpp`, `src/connection/event_loop.cpp` | `ExecutorBoundsAdmission`, `ExecutorDrainsDeterministically`, `ExecutorCancelPreventsLateRun` | In progress | pending |
 | LAT-R019 | 21 | RESUME epoch validation, keepalive, retransmission timers | `ReplayWindow`, `TimerWheel`, `ConnectionEngine` partially | `ResumeWindowTooOldRejects`, `StaleTimerIgnoredAfterCancel`, `HandshakeTimeoutClosesConnection`, `PingProducesPongAndEvent`, `ResumeTranscriptMismatchRejects` | In progress | pending |
-| LAT-R020 | 18 | Performance budget measurement | `docs/PERFORMANCE.md` | no local measurements | Blocked by toolchain | pending |
+| LAT-R020 | 18 | Performance budget measurement | `tools/lattice_bench.cpp`, `docs/PERFORMANCE.md` | `lattice_bench` measured 283.889 MiB/s, below target | In progress | pending |
 | LAT-R021 | 24 | Required documentation deliverables | `README.md`, `docs/*`, root docs | review only | Implemented | pending |
 | LAT-R022 | 20,21 | Full build/test/sanitizer/fuzz acceptance | project-wide | Debug/Release/ASan-Release passed; TSan unsupported on Windows Clang target | In progress | pending |
 | LAT-R023 | 10,17 | Bounded outbound scheduling preserves control priority and per-channel order | `include/lattice/scheduler.hpp`, `src/schedule/outbound_scheduler.cpp` | `SchedulerBoundsQueues`, `ControlDrainsBeforeData`, `PerChannelOrderUnderPriority` | Implemented, not run | pending |

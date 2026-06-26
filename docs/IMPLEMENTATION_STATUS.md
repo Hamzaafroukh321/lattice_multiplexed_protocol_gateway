@@ -61,6 +61,7 @@ Next source tickets:
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Blocked on Windows Clang target support.
+- Benchmark: `lattice_bench` measured 283.889 MiB/s for 1 KiB frame decode on this environment, below the MVP target.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" .` returned no matches.
 
@@ -72,4 +73,4 @@ Next source tickets:
 
 ## Last Verified Commit
 
-`ff600e0c5e88b36d5227c6b6a04edcd7236676eb`.
+`527c195d6455438b858f09ef315e7b56d6f26b8f`.
