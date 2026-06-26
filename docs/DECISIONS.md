@@ -8,7 +8,7 @@ Decision: Implement the current `ConnectionEngine` as a deterministic single-loo
 
 Alternatives considered: introduce worker threads immediately, or make channel objects independently mutable. Both would increase race risk before the protocol invariants are covered by tests.
 
-Consequences: The MVP path is deterministic and testable. Full multi-connection sharding, TSan stress, and bounded executor queues remain full-version work.
+Consequences: The MVP path is deterministic and testable. Stable connection-to-shard routing is implemented; threaded loop execution and TSan stress remain full-version work.
 
 Validation: Unit and integration test sources cover negotiation, generated channels, fragment delivery, stale generations, and credit conservation.
 
@@ -20,7 +20,7 @@ Decision: Use static C++ factories and a built-in echo plugin. Registry entries 
 
 Alternatives considered: shared-library loading or opaque payload forwarding. Those conflict with the non-goals and would complicate safe unload before schema negotiation is stable.
 
-Consequences: Plugin dispatch is real and schema-checked, but quiescent dynamic unload remains to be implemented.
+Consequences: Plugin dispatch is real and schema-checked. Quiescent unregister is implemented for active and queued dispatch leases; dynamic shared-library unloading remains outside the current static plugin model.
 
 Validation: `SchemaHashMismatchRejectsOpen` and gateway policy reject schema mismatch.
 

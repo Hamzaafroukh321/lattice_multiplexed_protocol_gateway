@@ -63,6 +63,7 @@ Next source tickets:
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Blocked on Windows Clang target support.
 - Benchmark: `lattice_bench` measured 1097.48 MiB/s in the final verification sample and 1.35-1.87 GiB/s in repeated samples after cached SSE4.2 CRC32C; this meets the MVP frame decode target here.
+- Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 100` passed memory probe repetitions.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" --glob "!docs/IMPLEMENTATION_STATUS.md" .` returned no matches.
 
