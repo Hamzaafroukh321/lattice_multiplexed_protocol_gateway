@@ -18,7 +18,7 @@ Lattice is organized as a small set of deterministic modules.
 
 `Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash. Routes carry source channel, destination channel, and plugin family IDs. Registered source routes can produce explicit forwarded-message objects. Optional pure translators may transform payloads across asymmetric schema hashes before destination limits are revalidated.
 
-`DeterministicExecutor` provides bounded task admission and deterministic task draining for tests, plugin dispatch, and future loop sharding.
+`DeterministicExecutor` provides bounded task admission and deterministic task draining for tests, plugin dispatch, and loop sharding. `ConnectionShardRouter` assigns connection IDs to stable executor shards so multi-connection work preserves actor confinement.
 
 `UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. Windows builds return stable transport-scoped unsupported errors for those operations.
 

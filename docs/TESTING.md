@@ -21,6 +21,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Unix transport round trip on POSIX or stable unsupported transport error on Windows.
 - Executor-backed plugin dispatch and deferred completion.
 - Bounded executor admission, deterministic drain order, and cancellation.
+- Stable connection-to-shard routing.
 - HELLO limit intersection and schema mismatch rejection.
 - End-to-end memory negotiation and echo plugin delivery.
 

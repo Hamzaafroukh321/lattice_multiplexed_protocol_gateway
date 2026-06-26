@@ -33,4 +33,16 @@ class DeterministicExecutor {
   std::deque<ExecutorTask> queue_;
 };
 
+class ConnectionShardRouter {
+ public:
+  explicit ConnectionShardRouter(DeterministicExecutor& executor);
+
+  [[nodiscard]] std::uint32_t shard_for(std::uint64_t connection_id) const;
+  [[nodiscard]] Result<std::uint64_t> submit(std::uint64_t connection_id,
+                                             std::function<Result<void>()> task);
+
+ private:
+  DeterministicExecutor& executor_;
+};
+
 }  // namespace lattice

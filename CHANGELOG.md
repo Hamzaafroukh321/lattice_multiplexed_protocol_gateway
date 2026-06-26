@@ -18,3 +18,4 @@
 - Added PONG deadline liveness timeout after idle keepalive PINGs.
 - Added in-process RESUME continuation that returns exact retained encoded frames from the requested sequence.
 - Added `lattice fixture --memory-hello` and a checked-in LTX/1 memory HELLO compatibility fixture.
+- Added stable connection-to-shard routing over the deterministic executor.

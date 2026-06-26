@@ -37,7 +37,7 @@ Next source tickets:
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
-- `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
+- `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
 - CLI `probe`, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.

@@ -57,4 +57,17 @@ Result<void> DeterministicExecutor::drain_all() {
   return {};
 }
 
+ConnectionShardRouter::ConnectionShardRouter(DeterministicExecutor& executor)
+    : executor_(executor) {}
+
+std::uint32_t ConnectionShardRouter::shard_for(std::uint64_t connection_id) const {
+  const std::uint32_t shard_count = executor_.shards() == 0U ? 1U : executor_.shards();
+  return static_cast<std::uint32_t>(connection_id % shard_count);
+}
+
+Result<std::uint64_t> ConnectionShardRouter::submit(
+    std::uint64_t connection_id, std::function<Result<void>()> task) {
+  return executor_.submit(shard_for(connection_id), std::move(task));
+}
+
 }  // namespace lattice

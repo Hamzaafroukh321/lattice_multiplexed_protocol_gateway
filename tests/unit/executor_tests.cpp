@@ -40,8 +40,24 @@ static void ExecutorCancelPreventsLateRun() {
   CHECK(!ran);
 }
 
+static void ConnectionShardRouterAssignsStableShards() {
+  DeterministicExecutor executor(4U, 3U);
+  ConnectionShardRouter router(executor);
+  CHECK(router.shard_for(7U) == router.shard_for(7U));
+  CHECK(router.shard_for(7U) == 1U);
+  int ran = 0;
+  REQUIRE_OK(router.submit(7U, [&] {
+    ran = 7;
+    return Result<void>{};
+  }));
+  REQUIRE_OK(executor.drain_all());
+  CHECK(ran == 7);
+}
+
 void register_executor_tests() {
   add_test("ExecutorBoundsAdmission", &ExecutorBoundsAdmission);
   add_test("ExecutorDrainsDeterministically", &ExecutorDrainsDeterministically);
   add_test("ExecutorCancelPreventsLateRun", &ExecutorCancelPreventsLateRun);
+  add_test("ConnectionShardRouterAssignsStableShards",
+           &ConnectionShardRouterAssignsStableShards);
 }
