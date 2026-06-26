@@ -44,6 +44,7 @@ enum class ErrorCode : std::uint16_t {
   would_block,
   plugin_decode,
   resume_rejected,
+  timeout,
   cancelled,
   transport_error,
   invariant_failure

@@ -70,8 +70,78 @@ static void LateFrameForOldGenerationRejected() {
   CHECK(rejected.error().code == ErrorCode::stale_generation);
 }
 
+static void HandshakeTimeoutClosesConnection() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  auto hello = left.start();
+  REQUIRE_OK(hello);
+  auto expired = left.advance_time(5000U);
+  CHECK(!expired);
+  CHECK(expired.error().code == ErrorCode::timeout);
+  CHECK(left.state() == ConnectionState::closed);
+}
+
+static void PingProducesPongAndEvent() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  handshake(left, right);
+  auto ping = left.ping(0x0102030405060708ULL);
+  REQUIRE_OK(ping);
+  CHECK(ping.value().size() == 1U);
+  auto pong = right.receive(ping.value()[0], false);
+  REQUIRE_OK(pong);
+  CHECK(pong.value().size() == 1U);
+  REQUIRE_OK(left.receive(pong.value()[0], false));
+  bool saw_pong = false;
+  for (const auto& event : left.events()) {
+    if (event.kind == ConnectionEvent::Kind::pong_received) {
+      saw_pong = true;
+    }
+  }
+  CHECK(saw_pong);
+}
+
+static void ResumeTranscriptMismatchRejects() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  handshake(left, right);
+  ResumeRequest request;
+  request.epoch = 1U;
+  request.first_required_seq = 1U;
+  auto frame = left.resume(request);
+  REQUIRE_OK(frame);
+  auto rejected = right.receive(frame.value()[0], false);
+  CHECK(!rejected);
+  CHECK(rejected.error().code == ErrorCode::resume_rejected);
+}
+
+static void AsyncResultAfterResetDropped() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  handshake(left, right);
+  auto opened = left.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(opened);
+  REQUIRE_OK(right.receive(opened.value().second[0], false));
+  REQUIRE_OK(right.reset(opened.value().first));
+
+  PluginCompletion completion;
+  completion.token = 99U;
+  completion.channel = opened.value().first;
+  completion.sequence = 1U;
+  completion.family_id = 7U;
+  completion.response = Bytes{'l', 'a', 't', 'e'};
+  REQUIRE_OK(right.complete_plugin(std::move(completion)));
+
+  for (const auto& event : right.events()) {
+    CHECK(!(event.kind == ConnectionEvent::Kind::plugin_response && event.payload == Bytes({'l', 'a', 't', 'e'})));
+  }
+}
+
 void register_multiplex_tests() {
   add_test("TwoMemoryTransportsCompleteHello", &TwoMemoryTransportsCompleteHello);
   add_test("TwoFragmentMessageDeliveryThroughEchoPlugin", &TwoFragmentMessageDeliveryThroughEchoPlugin);
   add_test("LateFrameForOldGenerationRejected", &LateFrameForOldGenerationRejected);
+  add_test("HandshakeTimeoutClosesConnection", &HandshakeTimeoutClosesConnection);
+  add_test("PingProducesPongAndEvent", &PingProducesPongAndEvent);
+  add_test("ResumeTranscriptMismatchRejects", &ResumeTranscriptMismatchRejects);
+  add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
 }

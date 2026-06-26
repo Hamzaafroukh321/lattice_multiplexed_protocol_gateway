@@ -39,6 +39,7 @@ add_executable(lattice_tests
   tests/unit/frame_tests.cpp
   tests/unit/channel_tests.cpp
   tests/unit/flow_tests.cpp
+  tests/unit/plugin_tests.cpp
   tests/unit/replay_tests.cpp
   tests/unit/scheduler_tests.cpp
   tests/unit/trace_tests.cpp
@@ -46,6 +47,7 @@ add_executable(lattice_tests
   tests/integration/multiplex.cpp
   tests/test_main.cpp)
 target_link_libraries(lattice_tests PRIVATE lattice_core)
+target_include_directories(lattice_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/tests)
 lattice_apply_warnings(lattice_tests)
 lattice_apply_sanitizers(lattice_tests)
 add_test(NAME lattice_tests COMMAND lattice_tests)

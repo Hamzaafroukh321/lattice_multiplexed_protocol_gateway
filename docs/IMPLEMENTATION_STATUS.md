@@ -1,6 +1,6 @@
 ﻿# Implementation Status
 
-Generated from this environment: 2026-06-26T15:12:46.4901228+01:00.
+Generated from this environment: 2026-06-26T16:09:25.7330517+01:00.
 
 ## Selected Specification
 
@@ -8,25 +8,21 @@ Generated from this environment: 2026-06-26T15:12:46.4901228+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation, scheduler, timer, trace, ACK, and resume-window source work is present. Local build execution is still blocked by missing CMake/C++ compiler tools on PATH.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-031 partially: deterministic trace serialization/parsing is implemented and the CLI `replay` command reads `LTXTRACE/1` files. LAT-022/LAT-023/LAT-024 are partially advanced with timer wheel, ACK payloads, replay ACK retirement, and resume-window proof checks.
+LAT-026 partially: plugin leases now make unregister wait for active dispatch leases. LAT-022/LAT-023/LAT-024 are further integrated into `ConnectionEngine` with handshake timeout, idle ping, retry, drain timers, ACK, PING/PONG, and RESUME rejection paths.
 
 ## Next Actionable Ticket
 
-Install or expose a C++20 toolchain and CMake, then run:
+Next source tickets:
 
-```powershell
-cmake --preset debug
-cmake --build --preset debug
-ctest --preset debug
-cmake --preset release
-cmake --build --preset release
-```
-
-After build verification, continue with compile fixes if any, then implement full keepalive/retransmission scheduling inside `ConnectionEngine`, Unix transport, and plugin quiescence.
+- Implement Unix-domain transport where the target platform supports it.
+- Expand gateway route table and typed translation beyond schema checks.
+- Add loop sharding and bounded executor queues.
+- Add long-running sequence wrap, generation wrap, backpressure, allocation-failure, and compatibility fixtures.
+- Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
 ## Completed Modules
 
@@ -40,29 +36,30 @@ After build verification, continue with compile fixes if any, then implement ful
 - `OutboundScheduler`: bounded control/data queues with per-channel sequence order.
 - `TraceLog`: deterministic `LTXTRACE/1` serialization and parsing.
 - `PluginRegistry`: static family registration and built-in echo plugin.
+- `PluginLease`: quiescent unregister blocks while active dispatch leases exist.
 - `Gateway`: exact schema-match forwarding policy.
-- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/HALF_CLOSE/RESET/GOAWAY dispatch.
+- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch.
 - CLI and fuzz smoke targets.
 
 ## In Progress Modules
 
-- `ConnectionEngine` still emits directly rather than routing all outbound bytes through `OutboundScheduler`.
-- Keepalive/retransmission timers are implemented as primitives but not yet integrated into engine event processing.
+- `ConnectionEngine` routes emitted frames through `OutboundScheduler`, but partial-write transport integration remains shallow.
+- Keepalive/retransmission timers are integrated at a basic engine level; full peer liveness policy and retained resume proof remain incomplete.
 - Transport coverage is memory-only in production code; Unix-domain adapter remains.
 
 ## Known Blockers
 
-- `cmake` is not recognized on PATH in this environment.
-- No C++ compiler executable was found on PATH during the available checks.
-- Because of that, debug/release/sanitizer/test/fuzz commands could not be executed locally.
+- TSan is unsupported by the available Windows Clang target: `clang++: error: unsupported option '-fsanitize=thread' for target 'x86_64-pc-windows-msvc'`.
+- LLVM installation through `winget install LLVM.LLVM` was cancelled by user/UAC, but usable LLVM binaries were already present under `C:\Program Files\LLVM`.
 
 ## Build And Test Status
 
-- Debug configure: Blocked, `cmake` missing.
-- Release configure: Blocked, `cmake` missing.
-- Unit/integration tests: Sources present, not executed locally.
-- Fuzz smoke: Sources present, not executed locally.
-- Sanitizers: CMake options present, not executed locally.
+- Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using explicit tool paths.
+- Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using explicit tool paths.
+- Unit/integration tests: Passed in Debug and Release.
+- Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
+- ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
+- TSan: Blocked on Windows Clang target support.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" .` returned no matches.
 

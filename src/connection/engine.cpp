@@ -1,4 +1,4 @@
-﻿#include "lattice/connection.hpp"
+#include "lattice/connection.hpp"
 
 #include <algorithm>
 
@@ -9,6 +9,14 @@ constexpr std::uint16_t kExtMessageSeq = 1U;
 constexpr std::uint16_t kExtFragmentOffset = 2U;
 constexpr std::uint16_t kExtMessageTotal = 3U;
 constexpr std::uint16_t kExtFamilyId = 4U;
+constexpr std::uint64_t kHandshakeTimeoutMs = 5000U;
+constexpr std::uint64_t kIdlePingMs = 30000U;
+constexpr std::uint64_t kDrainTimeoutMs = 1000U;
+
+void append_u16(Bytes& out, std::uint16_t value) {
+  out.push_back(static_cast<std::uint8_t>((value >> 8U) & 0xFFU));
+  out.push_back(static_cast<std::uint8_t>(value & 0xFFU));
+}
 
 void append_u32(Bytes& out, std::uint32_t value) {
   out.push_back(static_cast<std::uint8_t>((value >> 24U) & 0xFFU));
@@ -28,13 +36,63 @@ Bytes u32_bytes(std::uint32_t value) {
                     CloseAction::close_connection, std::move(detail));
 }
 
+[[nodiscard]] bool is_control_frame(FrameType type) {
+  return type != FrameType::data;
+}
+
 }  // namespace
+
+Bytes encode_u64_be(std::uint64_t value) {
+  Bytes out;
+  for (int shift = 56; shift >= 0; shift -= 8) {
+    out.push_back(static_cast<std::uint8_t>((value >> static_cast<unsigned>(shift)) & 0xFFU));
+  }
+  return out;
+}
+
+Result<std::uint64_t> decode_u64_be(std::span<const std::uint8_t> payload) {
+  if (payload.size() != 8U) {
+    return make_error(ErrorScope::connection, ErrorCode::sequence_error,
+                      CloseAction::close_connection, "u64 payload must be exactly eight bytes");
+  }
+  std::uint64_t value = 0;
+  for (std::uint8_t byte : payload) {
+    value = (value << 8U) | byte;
+  }
+  return value;
+}
+
+Result<Bytes> encode_resume_payload(const ResumeRequest& request) {
+  Bytes out;
+  out.insert(out.end(), request.transcript_hash.begin(), request.transcript_hash.end());
+  append_u16(out, request.epoch);
+  append_u32(out, request.first_required_seq);
+  return out;
+}
+
+Result<ResumeRequest> decode_resume_payload(std::span<const std::uint8_t> payload) {
+  if (payload.size() != 22U) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "RESUME payload length mismatch");
+  }
+  ResumeRequest request;
+  std::copy(payload.begin(), payload.begin() + 16, request.transcript_hash.begin());
+  request.epoch = static_cast<std::uint16_t>((static_cast<std::uint16_t>(payload[16]) << 8U) |
+                                             static_cast<std::uint16_t>(payload[17]));
+  auto first_required = read_u32_be(payload, 18U);
+  if (!first_required) {
+    return first_required.error();
+  }
+  request.first_required_seq = first_required.value();
+  return request;
+}
 
 ConnectionEngine::ConnectionEngine(LocalPolicy policy, PluginRegistry registry)
     : policy_(policy),
       registry_(std::move(registry)),
       codec_(FrameLimits{policy.max_frame, 4096U}),
-      replay_(policy.replay_window) {}
+      replay_(policy.replay_window),
+      scheduler_(policy.connection_window) {}
 
 Result<std::vector<Bytes>> ConnectionEngine::start() {
   if (state_ != ConnectionState::created) {
@@ -50,6 +108,7 @@ Result<std::vector<Bytes>> ConnectionEngine::start() {
     return payload.error();
   }
   state_ = ConnectionState::negotiating;
+  schedule_timer(TimerKind::handshake, ChannelId{}, kHandshakeTimeoutMs);
   auto frame = make_frame(FrameType::hello, ChannelId{}, payload.take_value());
   if (!frame) {
     return frame.error();
@@ -86,9 +145,9 @@ Result<std::pair<ChannelId, std::vector<Bytes>>> ConnectionEngine::open_channel(
     return state_error("OPEN before negotiated Active state");
   }
   const bool plugin_ok = std::any_of(capabilities_->plugins.begin(), capabilities_->plugins.end(),
-                                    [request](const PluginDescriptor& descriptor) {
-                                      return descriptor.family_id == request.family_id;
-                                    });
+                                     [request](const PluginDescriptor& descriptor) {
+                                       return descriptor.family_id == request.family_id;
+                                     });
   if (!plugin_ok) {
     return make_error(ErrorScope::plugin, ErrorCode::plugin_decode, CloseAction::reject_message,
                       "requested plugin family was not negotiated");
@@ -187,6 +246,101 @@ Result<std::vector<Bytes>> ConnectionEngine::acknowledge(std::vector<AckRange> r
   return emit(frame.take_value());
 }
 
+Result<std::vector<Bytes>> ConnectionEngine::ping(std::uint64_t token) {
+  auto frame = make_frame(FrameType::ping, ChannelId{}, encode_u64_be(token));
+  if (!frame) {
+    return frame.error();
+  }
+  return emit(frame.take_value());
+}
+
+Result<std::vector<Bytes>> ConnectionEngine::resume(ResumeRequest request) {
+  auto payload = encode_resume_payload(request);
+  if (!payload) {
+    return payload.error();
+  }
+  auto frame = make_frame(FrameType::resume, ChannelId{}, payload.take_value());
+  if (!frame) {
+    return frame.error();
+  }
+  return emit(frame.take_value());
+}
+
+Result<void> ConnectionEngine::complete_plugin(PluginCompletion completion) {
+  if (!channels_.has_value() || channels_->find(completion.channel) == nullptr) {
+    return {};
+  }
+  if (completion.token == 0U || completion.family_id == 0U) {
+    return make_error(ErrorScope::plugin, ErrorCode::plugin_decode,
+                      CloseAction::reject_message, "plugin completion token is invalid");
+  }
+  events_.push_back(ConnectionEvent{ConnectionEvent::Kind::plugin_response, completion.channel,
+                                    completion.sequence, std::move(completion.response), std::nullopt});
+  return {};
+}
+
+Result<std::vector<Bytes>> ConnectionEngine::advance_time(std::uint64_t now_ms) {
+  now_ms_ = now_ms;
+  std::vector<Bytes> out;
+  for (const TimerEvent& timer : timers_.expire(now_ms_)) {
+    events_.push_back(ConnectionEvent{ConnectionEvent::Kind::timer_expired, timer.channel, 0U, {}, std::nullopt});
+    if (state_ == ConnectionState::closed) {
+      continue;
+    }
+    switch (timer.kind) {
+      case TimerKind::handshake:
+        if (state_ == ConnectionState::negotiating) {
+          Error error = make_error(ErrorScope::connection, ErrorCode::timeout,
+                                   CloseAction::close_connection, "handshake timeout");
+          diagnostic(error);
+          state_ = ConnectionState::closed;
+          return error;
+        }
+        break;
+      case TimerKind::retry: {
+        auto due = replay_.due_for_retry(3U);
+        if (!due) {
+          return due.error();
+        }
+        for (const ReplayEntry& entry : due.value()) {
+          out.push_back(entry.encoded);
+        }
+        break;
+      }
+      case TimerKind::idle: {
+        auto ping_bytes = ping(now_ms_);
+        if (!ping_bytes) {
+          return ping_bytes.error();
+        }
+        out.insert(out.end(), ping_bytes.value().begin(), ping_bytes.value().end());
+        schedule_timer(TimerKind::idle, ChannelId{}, kIdlePingMs);
+        break;
+      }
+      case TimerKind::drain:
+        if (state_ == ConnectionState::draining) {
+          state_ = ConnectionState::closed;
+          events_.push_back(ConnectionEvent{ConnectionEvent::Kind::closed, ChannelId{}, 0U, {}, std::nullopt});
+        }
+        break;
+      case TimerKind::fragment_gap:
+        if (channels_) {
+          (void)channels_->reset(timer.channel);
+          events_.push_back(ConnectionEvent{ConnectionEvent::Kind::channel_reset, timer.channel, 0U, {}, std::nullopt});
+        }
+        break;
+    }
+  }
+  return out;
+}
+
+std::vector<Bytes> ConnectionEngine::flush_outbound(std::size_t writable_bytes) {
+  std::vector<Bytes> out;
+  for (OutboundItem& item : scheduler_.drain(writable_bytes)) {
+    out.push_back(std::move(item.encoded));
+  }
+  return out;
+}
+
 Result<std::vector<Bytes>> ConnectionEngine::half_close(ChannelId id, Direction direction) {
   if (!channels_) {
     return state_error("half-close before channel table exists");
@@ -222,6 +376,7 @@ Result<std::vector<Bytes>> ConnectionEngine::reset(ChannelId id) {
 
 Result<std::vector<Bytes>> ConnectionEngine::goaway() {
   state_ = ConnectionState::draining;
+  schedule_timer(TimerKind::drain, ChannelId{}, kDrainTimeoutMs);
   auto frame = make_frame(FrameType::goaway, ChannelId{}, {});
   if (!frame) {
     return frame.error();
@@ -247,6 +402,9 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_frame(const Frame& frame) {
     case FrameType::data: return handle_data(frame);
     case FrameType::ack: return handle_ack(frame);
     case FrameType::credit: return handle_credit(frame);
+    case FrameType::ping: return handle_ping(frame);
+    case FrameType::pong: return handle_pong(frame);
+    case FrameType::resume: return handle_resume(frame);
     case FrameType::half_close: {
       if (!channels_ || frame.payload.size() != 1U) {
         return make_error(ErrorScope::channel, ErrorCode::illegal_state,
@@ -269,11 +427,8 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_frame(const Frame& frame) {
     }
     case FrameType::goaway:
       state_ = ConnectionState::draining;
+      schedule_timer(TimerKind::drain, ChannelId{}, kDrainTimeoutMs);
       events_.push_back(ConnectionEvent{ConnectionEvent::Kind::closed, frame.channel, 0U, {}, std::nullopt});
-      return std::vector<Bytes>{};
-    case FrameType::ping:
-    case FrameType::pong:
-    case FrameType::resume:
       return std::vector<Bytes>{};
   }
   return make_error(ErrorScope::connection, ErrorCode::unsupported_frame_type,
@@ -302,6 +457,7 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_hello(const Frame& frame) {
   channels_.emplace(capabilities_->max_channels, capabilities_->connection_window / capabilities_->max_channels,
                     capabilities_->max_message);
   state_ = ConnectionState::active;
+  schedule_timer(TimerKind::idle, ChannelId{}, kIdlePingMs);
   events_.push_back(ConnectionEvent{ConnectionEvent::Kind::negotiated, ChannelId{}, 0U, {}, std::nullopt});
   return std::vector<Bytes>{};
 }
@@ -316,9 +472,9 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_open(const Frame& frame) {
     return family.error();
   }
   const bool plugin_ok = std::any_of(capabilities_->plugins.begin(), capabilities_->plugins.end(),
-                                    [&](const PluginDescriptor& descriptor) {
-                                      return descriptor.family_id == family.value();
-                                    });
+                                     [&](const PluginDescriptor& descriptor) {
+                                       return descriptor.family_id == family.value();
+                                     });
   if (!plugin_ok) {
     return make_error(ErrorScope::plugin, ErrorCode::plugin_decode, CloseAction::reset_channel,
                       "OPEN requested unnegotiated plugin family");
@@ -368,6 +524,7 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_data(const Frame& frame) {
     return message.error();
   }
   if (!message.value().has_value()) {
+    schedule_timer(TimerKind::fragment_gap, frame.channel, 1000U);
     return std::vector<Bytes>{};
   }
   LogicalMessage completed = std::move(message.value().value());
@@ -378,7 +535,7 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_data(const Frame& frame) {
   slot->next_recv_seq++;
   events_.push_back(ConnectionEvent{ConnectionEvent::Kind::message_delivered, frame.channel,
                                     completed.sequence, completed.payload, std::nullopt});
-  auto plugin = registry_.create(family.value());
+  auto plugin = registry_.create_lease(family.value());
   if (!plugin) {
     return plugin.error();
   }
@@ -386,8 +543,16 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_data(const Frame& frame) {
   if (!response) {
     return response.error();
   }
-  events_.push_back(ConnectionEvent{ConnectionEvent::Kind::plugin_response, frame.channel,
-                                    completed.sequence, response.value(), std::nullopt});
+  PluginCompletion completion;
+  completion.token = next_plugin_token_++;
+  completion.channel = frame.channel;
+  completion.sequence = completed.sequence;
+  completion.family_id = family.value();
+  completion.response = response.value();
+  auto applied = complete_plugin(std::move(completion));
+  if (!applied) {
+    return applied.error();
+  }
   return std::vector<Bytes>{};
 }
 
@@ -428,6 +593,62 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_ack(const Frame& frame) {
   return std::vector<Bytes>{};
 }
 
+Result<std::vector<Bytes>> ConnectionEngine::handle_ping(const Frame& frame) {
+  if (!frame.channel.is_control()) {
+    return make_error(ErrorScope::connection, ErrorCode::sequence_error,
+                      CloseAction::close_connection, "PING must use control channel");
+  }
+  auto token = decode_u64_be(frame.payload);
+  if (!token) {
+    return token.error();
+  }
+  auto pong = make_frame(FrameType::pong, ChannelId{}, encode_u64_be(token.value()));
+  if (!pong) {
+    return pong.error();
+  }
+  return emit(pong.take_value());
+}
+
+Result<std::vector<Bytes>> ConnectionEngine::handle_pong(const Frame& frame) {
+  if (!frame.channel.is_control()) {
+    return make_error(ErrorScope::connection, ErrorCode::sequence_error,
+                      CloseAction::close_connection, "PONG must use control channel");
+  }
+  auto token = decode_u64_be(frame.payload);
+  if (!token) {
+    return token.error();
+  }
+  events_.push_back(ConnectionEvent{ConnectionEvent::Kind::pong_received, ChannelId{},
+                                    static_cast<std::uint32_t>(token.value() & 0xFFFFFFFFU), {}, std::nullopt});
+  return std::vector<Bytes>{};
+}
+
+Result<std::vector<Bytes>> ConnectionEngine::handle_resume(const Frame& frame) {
+  if (!frame.channel.is_control()) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "RESUME must use control channel");
+  }
+  auto request = decode_resume_payload(frame.payload);
+  if (!request) {
+    return request.error();
+  }
+  if (!capabilities_.has_value() || capabilities_->transcript_hash != request.value().transcript_hash) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "RESUME transcript hash mismatch");
+  }
+  ResumeProof proof;
+  proof.transcript_hash = request.value().transcript_hash;
+  proof.epoch = request.value().epoch;
+  proof.first_required_seq = request.value().first_required_seq;
+  auto can_resume = replay_.can_resume(proof);
+  if (!can_resume) {
+    return can_resume.error();
+  }
+  state_ = ConnectionState::active;
+  events_.push_back(ConnectionEvent{ConnectionEvent::Kind::resumed, ChannelId{}, 0U, {}, std::nullopt});
+  return std::vector<Bytes>{};
+}
+
 Result<std::vector<Bytes>> ConnectionEngine::emit(Frame frame) {
   auto encoded = codec_.encode(frame);
   if (!encoded) {
@@ -437,7 +658,24 @@ Result<std::vector<Bytes>> ConnectionEngine::emit(Frame frame) {
   if (!record) {
     return record.error();
   }
-  return std::vector<Bytes>{encoded.take_value()};
+  auto queued = queue_encoded(frame, encoded.take_value());
+  if (!queued) {
+    return queued.error();
+  }
+  return flush_outbound(policy_.connection_window);
+}
+
+Result<void> ConnectionEngine::queue_encoded(Frame frame, Bytes encoded) {
+  OutboundItem item;
+  item.priority = is_control_frame(frame.type) ? OutboundPriority::control : OutboundPriority::data;
+  item.channel = frame.channel;
+  item.sequence = frame.frame_seq;
+  item.encoded = std::move(encoded);
+  return scheduler_.enqueue(std::move(item));
+}
+
+void ConnectionEngine::schedule_timer(TimerKind kind, ChannelId channel, std::uint64_t delay_ms) {
+  (void)timers_.schedule(kind, channel, now_ms_ + delay_ms);
 }
 
 void ConnectionEngine::diagnostic(Error error) {

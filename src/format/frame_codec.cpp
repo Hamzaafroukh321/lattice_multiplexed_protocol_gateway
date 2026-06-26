@@ -51,6 +51,7 @@ constexpr std::uint16_t kRequiredBit = 0x8000U;
     case ErrorCode::would_block: return "WouldBlock";
     case ErrorCode::plugin_decode: return "PluginDecode";
     case ErrorCode::resume_rejected: return "ResumeRejected";
+    case ErrorCode::timeout: return "Timeout";
     case ErrorCode::cancelled: return "Cancelled";
     case ErrorCode::transport_error: return "Transport";
     case ErrorCode::invariant_failure: return "InvariantFailure";

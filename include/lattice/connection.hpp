@@ -1,10 +1,12 @@
-﻿#pragma once
+#pragma once
 
 #include "lattice/channel.hpp"
 #include "lattice/plugin.hpp"
 #include "lattice/replay.hpp"
+#include "lattice/scheduler.hpp"
 #include "lattice/transport.hpp"
 
+#include <array>
 #include <optional>
 
 namespace lattice {
@@ -26,12 +28,21 @@ struct OpenRequest {
   std::size_t initial_window{kDefaultConnectionWindow / 4U};
 };
 
+struct ResumeRequest {
+  std::array<std::uint8_t, 16> transcript_hash{};
+  std::uint16_t epoch{1};
+  std::uint32_t first_required_seq{0};
+};
+
 struct ConnectionEvent {
   enum class Kind : std::uint8_t {
     negotiated,
     channel_opened,
     message_delivered,
     plugin_response,
+    pong_received,
+    resumed,
+    timer_expired,
     channel_reset,
     half_closed,
     closed,
@@ -59,6 +70,11 @@ class ConnectionEngine {
   [[nodiscard]] Result<std::vector<Bytes>> send(ChannelId id, std::span<const std::uint8_t> payload);
   [[nodiscard]] Result<std::vector<Bytes>> grant_credit(ChannelId id, std::size_t amount);
   [[nodiscard]] Result<std::vector<Bytes>> acknowledge(std::vector<AckRange> ranges);
+  [[nodiscard]] Result<std::vector<Bytes>> ping(std::uint64_t token);
+  [[nodiscard]] Result<std::vector<Bytes>> resume(ResumeRequest request);
+  [[nodiscard]] Result<void> complete_plugin(PluginCompletion completion);
+  [[nodiscard]] Result<std::vector<Bytes>> advance_time(std::uint64_t now_ms);
+  [[nodiscard]] std::vector<Bytes> flush_outbound(std::size_t writable_bytes);
   [[nodiscard]] Result<std::vector<Bytes>> half_close(ChannelId id, Direction direction);
   [[nodiscard]] Result<std::vector<Bytes>> reset(ChannelId id);
   [[nodiscard]] Result<std::vector<Bytes>> goaway();
@@ -72,7 +88,12 @@ class ConnectionEngine {
   [[nodiscard]] Result<std::vector<Bytes>> handle_data(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> handle_credit(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> handle_ack(const Frame& frame);
+  [[nodiscard]] Result<std::vector<Bytes>> handle_ping(const Frame& frame);
+  [[nodiscard]] Result<std::vector<Bytes>> handle_pong(const Frame& frame);
+  [[nodiscard]] Result<std::vector<Bytes>> handle_resume(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> emit(Frame frame);
+  [[nodiscard]] Result<void> queue_encoded(Frame frame, Bytes encoded);
+  void schedule_timer(TimerKind kind, ChannelId channel, std::uint64_t delay_ms);
   void diagnostic(Error error);
 
   LocalPolicy policy_;
@@ -82,8 +103,17 @@ class ConnectionEngine {
   std::optional<CapabilitySet> capabilities_;
   std::optional<ChannelTable> channels_;
   ReplayWindow replay_;
+  TimerWheel timers_;
+  OutboundScheduler scheduler_;
   std::uint32_t next_frame_seq_{1};
+  std::uint64_t next_plugin_token_{1};
+  std::uint64_t now_ms_{0};
   std::vector<ConnectionEvent> events_;
 };
+
+[[nodiscard]] Result<Bytes> encode_resume_payload(const ResumeRequest& request);
+[[nodiscard]] Result<ResumeRequest> decode_resume_payload(std::span<const std::uint8_t> payload);
+[[nodiscard]] Bytes encode_u64_be(std::uint64_t value);
+[[nodiscard]] Result<std::uint64_t> decode_u64_be(std::span<const std::uint8_t> payload);
 
 }  // namespace lattice

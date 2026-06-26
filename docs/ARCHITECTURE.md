@@ -14,6 +14,8 @@ Lattice is organized as a small set of deterministic modules.
 
 `PluginRegistry` maps negotiated family IDs to static factories. The built-in echo plugin receives only completed messages.
 
+`PluginLease` pins plugin dispatch lifetime. Unregister marks a family draining and returns `WouldBlock` until active leases have released.
+
 `Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash.
 
 `OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels.
