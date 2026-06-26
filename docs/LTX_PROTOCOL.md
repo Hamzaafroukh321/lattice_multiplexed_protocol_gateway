@@ -24,7 +24,7 @@ length:canonical ULEB128
 value:length bytes
 ```
 
-Extensions are serialized in ascending type order. The frame decoder rejects unsorted extension headers, non-canonical varints, reserved flags, unsupported frame types, frames over negotiated limits, CRC mismatch, and truncation at EOF.
+Extensions are serialized in ascending type order. Unknown optional extensions are retained in the frame model for callers that understand them. Unknown required extensions reject the frame with a connection-scoped `UnknownRequiredFeature` diagnostic. The frame decoder rejects unsorted extension headers, non-canonical varints, reserved flags, unsupported frame types, frames over negotiated limits, CRC mismatch, and truncation at EOF.
 
 DATA uses required extensions:
 

@@ -27,6 +27,7 @@ Next source tickets:
 ## Completed Modules
 
 - `FrameCodec`: LTX1 framing, CRC32C, canonical ULEB128, sorted TLVs, streaming decode.
+- `FrameCodec` compatibility: unknown optional extensions are accepted, unknown required extensions reject with a stable error.
 - `Negotiator`: HELLO encode/decode, version/limit/feature/plugin schema intersection, transcript hash.
 - `ChannelTable`: generated channels, generations, tombstones, remote OPEN acceptance, half-close/reset.
 - `Reassembler`: bounded non-overlapping fragments and exact complete-message delivery.

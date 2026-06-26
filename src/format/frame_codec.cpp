@@ -13,6 +13,18 @@ namespace {
 constexpr std::size_t kFixedPrefixBytes = 16U;
 constexpr std::uint16_t kRequiredBit = 0x8000U;
 
+[[nodiscard]] bool known_required_extension(std::uint16_t type) {
+  switch (type) {
+    case 1U:
+    case 2U:
+    case 3U:
+    case 4U:
+      return true;
+    default:
+      return false;
+  }
+}
+
 [[nodiscard]] const char* scope_name(ErrorScope scope) {
   switch (scope) {
     case ErrorScope::connection: return "connection";
@@ -255,6 +267,10 @@ Result<std::vector<Extension>> parse_extensions(std::span<const std::uint8_t> by
     Extension extension;
     extension.type = type;
     extension.required = (raw & kRequiredBit) != 0U;
+    if (extension.required && !known_required_extension(extension.type)) {
+      return make_error(ErrorScope::connection, ErrorCode::unknown_required_feature,
+                        CloseAction::close_connection, "unknown required frame extension");
+    }
     extension.value.assign(bytes.begin() + static_cast<std::ptrdiff_t>(cursor),
                            bytes.begin() + static_cast<std::ptrdiff_t>(cursor + len));
     extensions.push_back(std::move(extension));

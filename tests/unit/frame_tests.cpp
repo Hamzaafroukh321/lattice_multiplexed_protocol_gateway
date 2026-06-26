@@ -67,8 +67,39 @@ static void HelloCanonicalOrder() {
   CHECK(events[0].frame->extensions[1].type == 9U);
 }
 
+static void UnknownOptionalExtensionIsSkipped() {
+  FrameCodec codec;
+  Frame frame;
+  frame.type = FrameType::ping;
+  frame.frame_seq = 1U;
+  frame.payload = encode_u64_be(9U);
+  frame.extensions = {Extension{99U, false, Bytes{'o'}}};
+  auto encoded = codec.encode(frame);
+  REQUIRE_OK(encoded);
+  auto events = codec.feed(encoded.value(), false);
+  CHECK(events.size() == 1U);
+  CHECK(events[0].status == DecodeStatus::frame);
+}
+
+static void UnknownRequiredExtensionRejects() {
+  FrameCodec codec;
+  Frame frame;
+  frame.type = FrameType::ping;
+  frame.frame_seq = 1U;
+  frame.payload = encode_u64_be(9U);
+  frame.extensions = {Extension{99U, true, Bytes{'r'}}};
+  auto encoded = codec.encode(frame);
+  REQUIRE_OK(encoded);
+  auto events = codec.feed(encoded.value(), false);
+  CHECK(events.size() == 1U);
+  CHECK(events[0].status == DecodeStatus::error);
+  CHECK(events[0].error->code == ErrorCode::unknown_required_feature);
+}
+
 void register_frame_tests() {
   add_test("FrameSplitEveryByte", &FrameSplitEveryByte);
   add_test("CrcMismatchClosesConnection", &CrcMismatchClosesConnection);
   add_test("HelloCanonicalOrder", &HelloCanonicalOrder);
+  add_test("UnknownOptionalExtensionIsSkipped", &UnknownOptionalExtensionIsSkipped);
+  add_test("UnknownRequiredExtensionRejects", &UnknownRequiredExtensionRejects);
 }

@@ -5,7 +5,7 @@
 | LAT-R001 | 1,17 | C++20 CMake project with presets, warnings, sanitizer options | `CMakeLists.txt`, `CMakePresets.json`, `cmake/*` | Configure blocked locally; commands documented | Implemented | pending |
 | LAT-R002 | 12 | Stable scoped error model and close recommendations | `include/lattice/error.hpp`, `src/format/frame_codec.cpp` | Error assertions in tests | Implemented | pending |
 | LAT-R003 | 7 | LTX1 fixed header, ULEB128, CRC32C, canonical TLVs | `include/lattice/frame.hpp`, `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, `CrcMismatchClosesConnection`, `HelloCanonicalOrder` | Implemented | pending |
-| LAT-R004 | 7 | Streaming parser distinguishes need-more, truncation, malformed bytes | `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, frame fuzz target | Implemented | pending |
+| LAT-R004 | 7 | Streaming parser distinguishes need-more, truncation, malformed bytes, optional unknown extensions, and required unknown extension rejection | `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, `UnknownOptionalExtensionIsSkipped`, `UnknownRequiredExtensionRejects`, frame fuzz target | Implemented | pending |
 | LAT-R005 | 10 | HELLO negotiation intersects versions, limits, features, plugin schemas | `src/connection/negotiator.cpp` | `LimitIntersectionUsesMinimum`, `SchemaHashMismatchRejectsOpen` | Implemented | pending |
 | LAT-R006 | 6,8 | Compound channel number/generation identity and reuse | `include/lattice/channel.hpp`, `src/channel/channel_state.cpp` | `ChannelGenerationIncrements`, `LateFrameForOldGenerationRejected` | Implemented | pending |
 | LAT-R007 | 8 | Channel half-close and reset transitions | `src/channel/channel_state.cpp`, `src/connection/engine.cpp` | `HalfCloseDirectionsIndependent` | Implemented | pending |

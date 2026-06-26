@@ -9,3 +9,4 @@
 - Integrated engine ACK/PING/PONG/RESUME timeout paths, scheduler-backed emission, plugin completion tokens, and quiescent plugin leases.
 - Added gateway routes, typed translators, destination limit revalidation, and deterministic bounded executor primitives.
 - Added a frame decode benchmark and removed O(n^2) contiguous decode buffer erasure.
+- Enforced required-extension compatibility rejection while preserving optional unknown extensions.
