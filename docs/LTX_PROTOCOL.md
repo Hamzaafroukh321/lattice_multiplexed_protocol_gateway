@@ -1,0 +1,38 @@
+﻿# LTX/1 Protocol
+
+All multi-byte fixed integers are network byte order. Frames have no padding.
+
+```text
+magic:u32 = 0x4c545831
+type:u8
+flags:u8 = 0
+ext_len:u16
+channel_no:u24
+generation:u8
+frame_seq:u32
+payload_len:canonical ULEB128, max 5 bytes
+extensions: ext_len bytes
+payload: payload_len bytes
+crc32c:u32 over all preceding bytes
+```
+
+Extension encoding in this implementation:
+
+```text
+type:u16, high bit means required
+length:canonical ULEB128
+value:length bytes
+```
+
+Extensions are serialized in ascending type order. The frame decoder rejects unsorted extension headers, non-canonical varints, reserved flags, unsupported frame types, frames over negotiated limits, CRC mismatch, and truncation at EOF.
+
+DATA uses required extensions:
+
+- `1`: message sequence `u32`.
+- `2`: fragment offset `u32`.
+- `3`: total logical message length `u32`.
+- `4`: plugin family ID `u32`.
+
+HELLO payload is a compact fixed layout carrying version range, hard limits, required and optional feature masks, and sorted plugin descriptors.
+
+Compatibility policy: a required feature or schema mismatch rejects negotiation. Unknown optional frame extensions are retained in the frame model but ignored by current higher layers.

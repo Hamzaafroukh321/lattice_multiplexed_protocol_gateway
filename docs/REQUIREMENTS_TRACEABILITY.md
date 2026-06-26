@@ -1,0 +1,26 @@
+﻿# Requirements Traceability
+
+| ID | Specification section | Requirement | Implementation files | Test/fuzz evidence | Status | Commit |
+|---|---|---|---|---|---|---|
+| LAT-R001 | 1,17 | C++20 CMake project with presets, warnings, sanitizer options | `CMakeLists.txt`, `CMakePresets.json`, `cmake/*` | Configure blocked locally; commands documented | Implemented | pending |
+| LAT-R002 | 12 | Stable scoped error model and close recommendations | `include/lattice/error.hpp`, `src/format/frame_codec.cpp` | Error assertions in tests | Implemented | pending |
+| LAT-R003 | 7 | LTX1 fixed header, ULEB128, CRC32C, canonical TLVs | `include/lattice/frame.hpp`, `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, `CrcMismatchClosesConnection`, `HelloCanonicalOrder` | Implemented | pending |
+| LAT-R004 | 7 | Streaming parser distinguishes need-more, truncation, malformed bytes | `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, frame fuzz target | Implemented | pending |
+| LAT-R005 | 10 | HELLO negotiation intersects versions, limits, features, plugin schemas | `src/connection/negotiator.cpp` | `LimitIntersectionUsesMinimum`, `SchemaHashMismatchRejectsOpen` | Implemented | pending |
+| LAT-R006 | 6,8 | Compound channel number/generation identity and reuse | `include/lattice/channel.hpp`, `src/channel/channel_state.cpp` | `ChannelGenerationIncrements`, `LateFrameForOldGenerationRejected` | Implemented | pending |
+| LAT-R007 | 8 | Channel half-close and reset transitions | `src/channel/channel_state.cpp`, `src/connection/engine.cpp` | `HalfCloseDirectionsIndependent` | Implemented | pending |
+| LAT-R008 | 10,12 | Fragment range, overlap, and message cap validation | `src/channel/channel_state.cpp` | `TwoFragmentMessageDelivery`, `ConflictingOverlapResets` | Implemented | pending |
+| LAT-R009 | 10,18 | Byte-credit reservation/release/grant conservation | `src/channel/channel_state.cpp` | `CreditConservationProperty`, `CreditOverflowCloses` | Implemented | pending |
+| LAT-R010 | 11 | Public API for connection create/start/open/send/credit/half-close/reset | `include/lattice/connection.hpp`, `src/connection/engine.cpp` | integration tests | Implemented | pending |
+| LAT-R011 | 11,14 | Built-in plugin receives complete validated messages | `include/lattice/plugin.hpp`, `src/plugin/registry.cpp`, `src/connection/engine.cpp` | `TwoFragmentMessageDeliveryThroughEchoPlugin` | Implemented | pending |
+| LAT-R012 | 10,21 | Replay window records encoded frames and ACK retires exact ranges | `include/lattice/replay.hpp`, `src/replay/replay_window.cpp` | `AckRangesRetireExactly`, `RetransmitBytesIdentical` | Implemented | pending |
+| LAT-R013 | 11,21 | Gateway rejects opaque schema-mismatched forwarding | `include/lattice/gateway.hpp`, `src/gateway/gateway.cpp` | gateway fuzz target | Implemented | pending |
+| LAT-R014 | 14 | Frame fuzz target calls production decoder | `fuzz/lattice_frame_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
+| LAT-R015 | 14 | Connection event fuzz target calls production engines | `fuzz/lattice_connection_event_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
+| LAT-R016 | 14 | Gateway trace fuzz target calls production gateway policy | `fuzz/lattice_gateway_trace_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
+| LAT-R017 | 11 | CLI dump/replay/probe command surface | `tools/lattice.cpp` | manual command documented | Implemented, not run | pending |
+| LAT-R018 | 13,21 | Multi-connection loop sharding and bounded plugin executor | none | none | Not started | pending |
+| LAT-R019 | 21 | RESUME epoch validation, keepalive, retransmission timers | `ReplayWindow` partially | replay unit tests only | In progress | pending |
+| LAT-R020 | 18 | Performance budget measurement | `docs/PERFORMANCE.md` | no local measurements | Blocked by toolchain | pending |
+| LAT-R021 | 24 | Required documentation deliverables | `README.md`, `docs/*`, root docs | review only | Implemented | pending |
+| LAT-R022 | 20,21 | Full build/test/sanitizer/fuzz acceptance | project-wide | blocked locally | Blocked | pending |
