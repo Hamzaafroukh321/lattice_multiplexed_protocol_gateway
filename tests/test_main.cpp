@@ -24,6 +24,8 @@ void register_frame_tests();
 void register_channel_tests();
 void register_flow_tests();
 void register_replay_tests();
+void register_scheduler_tests();
+void register_trace_tests();
 void register_handshake_tests();
 void register_multiplex_tests();
 
@@ -36,6 +38,8 @@ int main() {
   register_channel_tests();
   register_flow_tests();
   register_replay_tests();
+  register_scheduler_tests();
+  register_trace_tests();
   register_handshake_tests();
   register_multiplex_tests();
 

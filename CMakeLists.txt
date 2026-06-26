@@ -18,6 +18,7 @@ add_library(lattice_core
   src/connection/negotiator.cpp
   src/channel/channel_state.cpp
   src/replay/replay_window.cpp
+  src/replay/trace.cpp
   src/schedule/outbound_scheduler.cpp
   src/plugin/registry.cpp
   src/gateway/gateway.cpp
@@ -39,6 +40,8 @@ add_executable(lattice_tests
   tests/unit/channel_tests.cpp
   tests/unit/flow_tests.cpp
   tests/unit/replay_tests.cpp
+  tests/unit/scheduler_tests.cpp
+  tests/unit/trace_tests.cpp
   tests/integration/handshake.cpp
   tests/integration/multiplex.cpp
   tests/test_main.cpp)

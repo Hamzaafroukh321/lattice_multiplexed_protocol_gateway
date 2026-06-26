@@ -16,6 +16,12 @@ Lattice is organized as a small set of deterministic modules.
 
 `Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash.
 
+`OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels.
+
+`TimerWheel` stores timer events with stable IDs, channel generations, and deterministic due-time ordering.
+
+`TraceLog` provides a canonical text form for replay fixtures and CLI inspection.
+
 ## Lock Hierarchy
 
 The current implementation is deterministic single-loop and does not lock connection or channel state. Future full-version concurrency should use registry mutex, loop-shard registry, then trace sink ordering.

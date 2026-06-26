@@ -14,4 +14,6 @@ The repository includes three production-linked smoke fuzz targets.
 
 `lattice_gateway_trace_fuzz` calls production gateway translation policy and rejects schema-mismatched opaque forwarding.
 
+Trace fixtures use the `LTXTRACE/1` text format parsed by `TraceLog`.
+
 Seed corpora live under `corpus/frames`, `corpus/events`, and `corpus/traces`. Reproducers should be converted into ordinary tests before being kept as regression evidence.

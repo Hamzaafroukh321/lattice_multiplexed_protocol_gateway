@@ -1,6 +1,6 @@
 ﻿# Implementation Status
 
-Generated from this environment: 2026-06-26T06:30:51.1527427+01:00.
+Generated from this environment: 2026-06-26T15:12:46.4901228+01:00.
 
 ## Selected Specification
 
@@ -8,11 +8,11 @@ Generated from this environment: 2026-06-26T06:30:51.1527427+01:00.
 
 ## Current Phase
 
-Phase 7: verification and documentation. The compact production implementation and tests are present. Local build execution is blocked by missing CMake/C++ compiler tools on PATH.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation, scheduler, timer, trace, ACK, and resume-window source work is present. Local build execution is still blocked by missing CMake/C++ compiler tools on PATH.
 
 ## Last Completed Ticket
 
-LAT-034 partially: all three required fuzz smoke targets exist and call production code paths. Sustained sanitizer fuzz campaigns are not verified locally.
+LAT-031 partially: deterministic trace serialization/parsing is implemented and the CLI `replay` command reads `LTXTRACE/1` files. LAT-022/LAT-023/LAT-024 are partially advanced with timer wheel, ACK payloads, replay ACK retirement, and resume-window proof checks.
 
 ## Next Actionable Ticket
 
@@ -26,7 +26,7 @@ cmake --preset release
 cmake --build --preset release
 ```
 
-After build verification, continue LAT-022 through LAT-031 full-version replay/timer/trace work.
+After build verification, continue with compile fixes if any, then implement full keepalive/retransmission scheduling inside `ConnectionEngine`, Unix transport, and plugin quiescence.
 
 ## Completed Modules
 
@@ -36,6 +36,9 @@ After build verification, continue LAT-022 through LAT-031 full-version replay/t
 - `Reassembler`: bounded non-overlapping fragments and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes.
+- `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
+- `OutboundScheduler`: bounded control/data queues with per-channel sequence order.
+- `TraceLog`: deterministic `LTXTRACE/1` serialization and parsing.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `Gateway`: exact schema-match forwarding policy.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/HALF_CLOSE/RESET/GOAWAY dispatch.
@@ -43,8 +46,8 @@ After build verification, continue LAT-022 through LAT-031 full-version replay/t
 
 ## In Progress Modules
 
-- Outbound scheduler is represented by deterministic FIFO emission in `ConnectionEngine`; full deficit scheduling remains.
-- Trace replay is limited to frame dumping in the CLI; canonical event trace format remains.
+- `ConnectionEngine` still emits directly rather than routing all outbound bytes through `OutboundScheduler`.
+- Keepalive/retransmission timers are implemented as primitives but not yet integrated into engine event processing.
 - Transport coverage is memory-only in production code; Unix-domain adapter remains.
 
 ## Known Blockers
@@ -61,6 +64,7 @@ After build verification, continue LAT-022 through LAT-031 full-version replay/t
 - Fuzz smoke: Sources present, not executed locally.
 - Sanitizers: CMake options present, not executed locally.
 - Static analysis: Not executed locally.
+- Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" .` returned no matches.
 
 ## Deviations
 
@@ -70,4 +74,4 @@ After build verification, continue LAT-022 through LAT-031 full-version replay/t
 
 ## Last Verified Commit
 
-No commits existed when implementation began. Verification is source-level only until a toolchain is available.
+`051d70b98006eae1ed1f4049ee1b6e7eb7b47991`. Verification is source-level only until a toolchain is available.

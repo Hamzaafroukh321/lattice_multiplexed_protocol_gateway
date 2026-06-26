@@ -175,6 +175,18 @@ Result<std::vector<Bytes>> ConnectionEngine::grant_credit(ChannelId id, std::siz
   return emit(frame.take_value());
 }
 
+Result<std::vector<Bytes>> ConnectionEngine::acknowledge(std::vector<AckRange> ranges) {
+  auto payload = encode_ack_payload(1U, std::move(ranges));
+  if (!payload) {
+    return payload.error();
+  }
+  auto frame = make_frame(FrameType::ack, ChannelId{}, payload.take_value());
+  if (!frame) {
+    return frame.error();
+  }
+  return emit(frame.take_value());
+}
+
 Result<std::vector<Bytes>> ConnectionEngine::half_close(ChannelId id, Direction direction) {
   if (!channels_) {
     return state_error("half-close before channel table exists");
@@ -233,6 +245,7 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_frame(const Frame& frame) {
     case FrameType::hello: return handle_hello(frame);
     case FrameType::open: return handle_open(frame);
     case FrameType::data: return handle_data(frame);
+    case FrameType::ack: return handle_ack(frame);
     case FrameType::credit: return handle_credit(frame);
     case FrameType::half_close: {
       if (!channels_ || frame.payload.size() != 1U) {
@@ -258,7 +271,6 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_frame(const Frame& frame) {
       state_ = ConnectionState::draining;
       events_.push_back(ConnectionEvent{ConnectionEvent::Kind::closed, frame.channel, 0U, {}, std::nullopt});
       return std::vector<Bytes>{};
-    case FrameType::ack:
     case FrameType::ping:
     case FrameType::pong:
     case FrameType::resume:
@@ -396,6 +408,22 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_credit(const Frame& frame) {
   auto grant = slot->flow.grant(amount.value());
   if (!grant) {
     return grant.error();
+  }
+  return std::vector<Bytes>{};
+}
+
+Result<std::vector<Bytes>> ConnectionEngine::handle_ack(const Frame& frame) {
+  if (!frame.channel.is_control()) {
+    return make_error(ErrorScope::connection, ErrorCode::sequence_error,
+                      CloseAction::close_connection, "ACK must use control channel");
+  }
+  auto decoded = decode_ack_payload(frame.payload);
+  if (!decoded) {
+    return decoded.error();
+  }
+  auto retired = replay_.acknowledge(decoded.value().first, decoded.value().second);
+  if (!retired) {
+    return retired.error();
   }
   return std::vector<Bytes>{};
 }

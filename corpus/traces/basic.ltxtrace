@@ -1,1 +1,4 @@
-﻿left:hello right:hello route:echo
+LTXTRACE/1
+0|api|left_start|
+1|transport|left_hello|4c545831
+2|timer|handshake_deadline|

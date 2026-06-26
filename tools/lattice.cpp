@@ -1,4 +1,5 @@
-﻿#include "lattice/connection.hpp"
+#include "lattice/connection.hpp"
+#include "lattice/trace.hpp"
 
 #include <fstream>
 #include <iostream>
@@ -43,6 +44,24 @@ int dump_file(const std::string& path) {
   return 0;
 }
 
+int replay_trace(const std::string& path) {
+  std::ifstream in(path, std::ios::binary);
+  if (!in) {
+    std::cerr << "lattice: cannot open " << path << '\n';
+    return 3;
+  }
+  std::string text((std::istreambuf_iterator<char>(in)), std::istreambuf_iterator<char>());
+  auto parsed = lattice::TraceLog::parse(text);
+  if (!parsed) {
+    std::cerr << parsed.error().stable_code() << ": " << parsed.error().detail << '\n';
+    return 3;
+  }
+  for (const auto& event : parsed.value().events()) {
+    std::cout << event.time_ms << " " << event.label << " bytes=" << event.bytes.size() << '\n';
+  }
+  return 0;
+}
+
 int probe_memory() {
   lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
   lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
@@ -70,7 +89,7 @@ void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
             << "  lattice dump <file>\n"
-            << "  lattice replay <file>\n";
+            << "  lattice replay <trace-file>\n";
 }
 
 }  // namespace
@@ -84,8 +103,11 @@ int main(int argc, char** argv) {
   if (command == "probe" && argc == 3 && std::string(argv[2]) == "--memory") {
     return probe_memory();
   }
-  if ((command == "dump" || command == "replay") && argc == 3) {
+  if (command == "dump" && argc == 3) {
     return dump_file(argv[2]);
+  }
+  if (command == "replay" && argc == 3) {
+    return replay_trace(argv[2]);
   }
   if (command == "serve" || command == "bridge") {
     std::cerr << "lattice: Unix-socket serve/bridge is not available in this portable build\n";

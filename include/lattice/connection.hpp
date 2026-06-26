@@ -58,6 +58,7 @@ class ConnectionEngine {
   [[nodiscard]] Result<std::pair<ChannelId, std::vector<Bytes>>> open_channel(OpenRequest request);
   [[nodiscard]] Result<std::vector<Bytes>> send(ChannelId id, std::span<const std::uint8_t> payload);
   [[nodiscard]] Result<std::vector<Bytes>> grant_credit(ChannelId id, std::size_t amount);
+  [[nodiscard]] Result<std::vector<Bytes>> acknowledge(std::vector<AckRange> ranges);
   [[nodiscard]] Result<std::vector<Bytes>> half_close(ChannelId id, Direction direction);
   [[nodiscard]] Result<std::vector<Bytes>> reset(ChannelId id);
   [[nodiscard]] Result<std::vector<Bytes>> goaway();
@@ -70,6 +71,7 @@ class ConnectionEngine {
   [[nodiscard]] Result<std::vector<Bytes>> handle_open(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> handle_data(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> handle_credit(const Frame& frame);
+  [[nodiscard]] Result<std::vector<Bytes>> handle_ack(const Frame& frame);
   [[nodiscard]] Result<std::vector<Bytes>> emit(Frame frame);
   void diagnostic(Error error);
 
