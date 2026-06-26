@@ -14,7 +14,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Bounded outbound scheduling, control priority, and per-channel data ordering.
 - Deterministic trace serialization/parsing and canonical replay summary verification.
 - Plugin unregister quiescence and stale completion discard.
-- Handshake timeout, PING/PONG, and RESUME rejection.
+- Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.
 - Gateway registered-route bridging and typed asymmetric schema translation.
 - Unix transport round trip on POSIX or stable unsupported transport error on Windows.

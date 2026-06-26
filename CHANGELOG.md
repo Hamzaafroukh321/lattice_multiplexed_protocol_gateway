@@ -15,3 +15,4 @@
 - Added executor-backed plugin dispatch in `ConnectionEngine`.
 - Added cached SSE4.2 CRC32C acceleration with portable slicing-by-8 fallback; release frame decode now exceeds the MVP throughput target in this environment.
 - Added canonical trace replay verification summaries to the library and `lattice replay`.
+- Added PONG deadline liveness timeout after idle keepalive PINGs.

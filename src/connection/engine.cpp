@@ -11,6 +11,7 @@ constexpr std::uint16_t kExtMessageTotal = 3U;
 constexpr std::uint16_t kExtFamilyId = 4U;
 constexpr std::uint64_t kHandshakeTimeoutMs = 5000U;
 constexpr std::uint64_t kIdlePingMs = 30000U;
+constexpr std::uint64_t kPongTimeoutMs = 5000U;
 constexpr std::uint64_t kDrainTimeoutMs = 1000U;
 
 void append_u16(Bytes& out, std::uint16_t value) {
@@ -310,14 +311,27 @@ Result<std::vector<Bytes>> ConnectionEngine::advance_time(std::uint64_t now_ms) 
         break;
       }
       case TimerKind::idle: {
-        auto ping_bytes = ping(now_ms_);
+        const std::uint64_t token = now_ms_ == 0U ? 1U : now_ms_;
+        pending_pong_token_ = token;
+        auto ping_bytes = ping(token);
         if (!ping_bytes) {
           return ping_bytes.error();
         }
         out.insert(out.end(), ping_bytes.value().begin(), ping_bytes.value().end());
+        schedule_timer(TimerKind::pong_deadline, ChannelId{}, kPongTimeoutMs);
         schedule_timer(TimerKind::idle, ChannelId{}, kIdlePingMs);
         break;
       }
+      case TimerKind::pong_deadline:
+        if (pending_pong_token_.has_value()) {
+          Error error = make_error(ErrorScope::connection, ErrorCode::timeout,
+                                   CloseAction::close_connection, "PONG timeout");
+          diagnostic(error);
+          state_ = ConnectionState::closed;
+          events_.push_back(ConnectionEvent{ConnectionEvent::Kind::closed, ChannelId{}, 0U, {}, std::nullopt});
+          return error;
+        }
+        break;
       case TimerKind::drain:
         if (state_ == ConnectionState::draining) {
           state_ = ConnectionState::closed;
@@ -645,6 +659,9 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_pong(const Frame& frame) {
   auto token = decode_u64_be(frame.payload);
   if (!token) {
     return token.error();
+  }
+  if (pending_pong_token_.has_value() && pending_pong_token_.value() == token.value()) {
+    pending_pong_token_.reset();
   }
   events_.push_back(ConnectionEvent{ConnectionEvent::Kind::pong_received, ChannelId{},
                                     static_cast<std::uint32_t>(token.value() & 0xFFFFFFFFU), {}, std::nullopt});

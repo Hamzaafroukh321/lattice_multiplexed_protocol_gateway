@@ -100,6 +100,34 @@ static void PingProducesPongAndEvent() {
   CHECK(saw_pong);
 }
 
+static void MissedIdlePongClosesConnection() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  handshake(left, right);
+  auto ping = left.advance_time(30000U);
+  REQUIRE_OK(ping);
+  CHECK(ping.value().size() == 1U);
+  auto expired = left.advance_time(35000U);
+  CHECK(!expired);
+  CHECK(expired.error().code == ErrorCode::timeout);
+  CHECK(left.state() == ConnectionState::closed);
+}
+
+static void IdlePongSatisfiesLivenessDeadline() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  handshake(left, right);
+  auto ping = left.advance_time(30000U);
+  REQUIRE_OK(ping);
+  auto pong = right.receive(ping.value()[0], false);
+  REQUIRE_OK(pong);
+  CHECK(pong.value().size() == 1U);
+  REQUIRE_OK(left.receive(pong.value()[0], false));
+  auto deadline = left.advance_time(35000U);
+  REQUIRE_OK(deadline);
+  CHECK(left.state() == ConnectionState::active);
+}
+
 static void ResumeTranscriptMismatchRejects() {
   ConnectionEngine left(LocalPolicy{}, make_registry());
   ConnectionEngine right(LocalPolicy{}, make_registry());
@@ -175,6 +203,8 @@ void register_multiplex_tests() {
   add_test("LateFrameForOldGenerationRejected", &LateFrameForOldGenerationRejected);
   add_test("HandshakeTimeoutClosesConnection", &HandshakeTimeoutClosesConnection);
   add_test("PingProducesPongAndEvent", &PingProducesPongAndEvent);
+  add_test("MissedIdlePongClosesConnection", &MissedIdlePongClosesConnection);
+  add_test("IdlePongSatisfiesLivenessDeadline", &IdlePongSatisfiesLivenessDeadline);
   add_test("ResumeTranscriptMismatchRejects", &ResumeTranscriptMismatchRejects);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
   add_test("PluginDispatchCanRunOnDeterministicExecutor",

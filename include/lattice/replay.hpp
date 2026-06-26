@@ -39,6 +39,7 @@ enum class TimerKind : std::uint8_t {
   fragment_gap,
   retry,
   idle,
+  pong_deadline,
   drain
 };
 

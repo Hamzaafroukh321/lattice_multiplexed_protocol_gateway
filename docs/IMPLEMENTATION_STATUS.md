@@ -21,7 +21,6 @@ Next source tickets:
 - Add long-running sequence wrap, generation wrap, backpressure, allocation-failure, and compatibility fixtures.
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
 - Extend RESUME from validation/retry primitives to retained-state continuation.
-- Add peer liveness policy on top of basic keepalive timers.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
 ## Completed Modules
@@ -40,14 +39,14 @@ Next source tickets:
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
-- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, with optional executor-backed plugin dispatch.
+- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, with optional executor-backed plugin dispatch and PONG deadline liveness timeout.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
 - CLI `probe`, `dump`, and canonical `replay` verification commands plus fuzz smoke targets.
 
 ## In Progress Modules
 
 - `ConnectionEngine` routes emitted frames through `OutboundScheduler`, but partial-write transport integration remains shallow.
-- Keepalive/retransmission timers are integrated at a basic engine level; full peer liveness policy and retained resume proof remain incomplete.
+- Keepalive/retransmission timers are integrated; retained resume continuation remains incomplete.
 - CLI Unix endpoint serving and policy-file bridge mode remain incomplete.
 
 ## Known Blockers

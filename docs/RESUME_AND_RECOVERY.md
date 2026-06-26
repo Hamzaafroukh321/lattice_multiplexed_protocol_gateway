@@ -10,12 +10,11 @@ Implemented now:
 - `TimerWheel` schedules, cancels, and expires generation-tagged retry/idle/drain timers deterministically.
 - `ResumeProof` rejects requests outside the retained replay window.
 - `TraceLog` serializes, parses, and verifies canonical deterministic `LTXTRACE/1` replay summaries.
-- `ConnectionEngine` handles ACK, PING/PONG, malformed RESUME rejection, handshake timeout, retry timer, idle ping, and bounded drain timer paths.
+- `ConnectionEngine` handles ACK, PING/PONG, missed-PONG liveness timeout, malformed RESUME rejection, handshake timeout, retry timer, idle ping, and bounded drain timer paths.
 
 Remaining full-version work:
 
 - RESUME frame validation against prior session ID and transcript hash inside `ConnectionEngine`.
-- Full peer liveness policy for missed PONG deadlines.
 - Durable retained state across process restart.
 - Full replay tool that re-injects API events, timers, transport completions, and plugin results beyond the current canonical summary verification.
 

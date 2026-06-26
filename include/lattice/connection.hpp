@@ -111,6 +111,7 @@ class ConnectionEngine {
   std::uint32_t next_frame_seq_{1};
   std::uint64_t next_plugin_token_{1};
   std::uint64_t now_ms_{0};
+  std::optional<std::uint64_t> pending_pong_token_;
   std::vector<ConnectionEvent> events_;
 };
 
