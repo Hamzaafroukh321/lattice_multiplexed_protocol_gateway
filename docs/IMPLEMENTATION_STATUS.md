@@ -35,14 +35,14 @@ Next source tickets:
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
 - `OutboundScheduler`: bounded control/data queues with per-channel sequence order.
-- `TraceLog`: deterministic `LTXTRACE/1` serialization and parsing.
+- `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, with optional executor-backed plugin dispatch.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
-- CLI and fuzz smoke targets.
+- CLI `probe`, `dump`, and canonical `replay` verification commands plus fuzz smoke targets.
 
 ## In Progress Modules
 

@@ -22,6 +22,17 @@ struct TraceEvent {
   Bytes bytes;
 };
 
+struct TraceReplayReport {
+  std::size_t total_events{0};
+  std::size_t transport_events{0};
+  std::size_t api_events{0};
+  std::size_t timer_events{0};
+  std::size_t plugin_events{0};
+  std::size_t diagnostic_events{0};
+  std::size_t total_bytes{0};
+  bool canonical{false};
+};
+
 class TraceLog {
  public:
   void record(TraceEvent event);
@@ -32,5 +43,7 @@ class TraceLog {
  private:
   std::vector<TraceEvent> events_;
 };
+
+[[nodiscard]] Result<TraceReplayReport> verify_trace_replay(const TraceLog& log);
 
 }  // namespace lattice

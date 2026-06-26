@@ -163,4 +163,45 @@ Result<TraceLog> TraceLog::parse(const std::string& text) {
   return log;
 }
 
+Result<TraceReplayReport> verify_trace_replay(const TraceLog& log) {
+  TraceReplayReport report;
+  std::uint64_t previous_time = 0;
+  bool first = true;
+  for (const TraceEvent& event : log.events()) {
+    if (!first && event.time_ms < previous_time) {
+      return make_error(ErrorScope::connection, ErrorCode::sequence_error, CloseAction::none,
+                        "trace replay timestamps are not monotonic");
+    }
+    first = false;
+    previous_time = event.time_ms;
+    ++report.total_events;
+    report.total_bytes += event.bytes.size();
+    switch (event.kind) {
+      case TraceKind::transport_bytes: ++report.transport_events; break;
+      case TraceKind::api_event: ++report.api_events; break;
+      case TraceKind::timer: ++report.timer_events; break;
+      case TraceKind::plugin_completion: ++report.plugin_events; break;
+      case TraceKind::diagnostic: ++report.diagnostic_events; break;
+    }
+  }
+  auto serialized = log.serialize();
+  if (!serialized) {
+    return serialized.error();
+  }
+  auto reparsed = TraceLog::parse(serialized.value());
+  if (!reparsed) {
+    return reparsed.error();
+  }
+  auto reserialized = reparsed.value().serialize();
+  if (!reserialized) {
+    return reserialized.error();
+  }
+  report.canonical = serialized.value() == reserialized.value();
+  if (!report.canonical) {
+    return make_error(ErrorScope::connection, ErrorCode::sequence_error, CloseAction::none,
+                      "trace replay is not canonical");
+  }
+  return report;
+}
+
 }  // namespace lattice

@@ -56,9 +56,19 @@ int replay_trace(const std::string& path) {
     std::cerr << parsed.error().stable_code() << ": " << parsed.error().detail << '\n';
     return 3;
   }
-  for (const auto& event : parsed.value().events()) {
-    std::cout << event.time_ms << " " << event.label << " bytes=" << event.bytes.size() << '\n';
+  auto report = lattice::verify_trace_replay(parsed.value());
+  if (!report) {
+    std::cerr << report.error().stable_code() << ": " << report.error().detail << '\n';
+    return 3;
   }
+  std::cout << "events=" << report.value().total_events
+            << " transport=" << report.value().transport_events
+            << " api=" << report.value().api_events
+            << " timer=" << report.value().timer_events
+            << " plugin=" << report.value().plugin_events
+            << " diagnostic=" << report.value().diagnostic_events
+            << " bytes=" << report.value().total_bytes
+            << " canonical=" << (report.value().canonical ? "yes" : "no") << '\n';
   return 0;
 }
 

@@ -12,7 +12,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Replay ACK retirement and identical retry bytes.
 - ACK payload canonicalization, resume-window rejection, and generation-tagged timer cancellation.
 - Bounded outbound scheduling, control priority, and per-channel data ordering.
-- Deterministic trace serialization/parsing.
+- Deterministic trace serialization/parsing and canonical replay summary verification.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.

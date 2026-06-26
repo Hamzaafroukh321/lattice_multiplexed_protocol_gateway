@@ -23,7 +23,21 @@ static void TraceRejectsMalformedHex() {
   CHECK(parsed.error().code == ErrorCode::resource_limit);
 }
 
+static void TraceReplayVerificationCountsEvents() {
+  TraceLog log;
+  log.record(TraceEvent{2U, TraceKind::plugin_completion, "done", Bytes{0x01U, 0x02U}});
+  log.record(TraceEvent{1U, TraceKind::api_event, "open", Bytes{}});
+  auto report = verify_trace_replay(log);
+  REQUIRE_OK(report);
+  CHECK(report.value().canonical);
+  CHECK(report.value().total_events == 2U);
+  CHECK(report.value().api_events == 1U);
+  CHECK(report.value().plugin_events == 1U);
+  CHECK(report.value().total_bytes == 2U);
+}
+
 void register_trace_tests() {
   add_test("TraceRoundTripIsDeterministic", &TraceRoundTripIsDeterministic);
   add_test("TraceRejectsMalformedHex", &TraceRejectsMalformedHex);
+  add_test("TraceReplayVerificationCountsEvents", &TraceReplayVerificationCountsEvents);
 }
