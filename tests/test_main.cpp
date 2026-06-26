@@ -23,6 +23,8 @@ std::vector<TestCase>& registry() {
 void register_frame_tests();
 void register_channel_tests();
 void register_flow_tests();
+void register_executor_tests();
+void register_gateway_tests();
 void register_plugin_tests();
 void register_replay_tests();
 void register_scheduler_tests();
@@ -38,6 +40,8 @@ int main() {
   register_frame_tests();
   register_channel_tests();
   register_flow_tests();
+  register_executor_tests();
+  register_gateway_tests();
   register_plugin_tests();
   register_replay_tests();
   register_scheduler_tests();

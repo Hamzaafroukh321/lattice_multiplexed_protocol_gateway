@@ -16,7 +16,9 @@ Lattice is organized as a small set of deterministic modules.
 
 `PluginLease` pins plugin dispatch lifetime. Unregister marks a family draining and returns `WouldBlock` until active leases have released.
 
-`Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash.
+`Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash. Routes carry source channel, destination channel, and plugin family IDs. Optional pure translators may transform payloads before destination limits are revalidated.
+
+`DeterministicExecutor` provides bounded task admission and deterministic task draining for tests and future loop/plugin sharding.
 
 `OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels.
 

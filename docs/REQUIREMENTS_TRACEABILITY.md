@@ -14,12 +14,12 @@
 | LAT-R010 | 11 | Public API for connection create/start/open/send/credit/half-close/reset | `include/lattice/connection.hpp`, `src/connection/engine.cpp` | integration tests | Implemented | pending |
 | LAT-R011 | 11,14 | Built-in plugin receives complete validated messages | `include/lattice/plugin.hpp`, `src/plugin/registry.cpp`, `src/connection/engine.cpp` | `TwoFragmentMessageDeliveryThroughEchoPlugin` | Implemented | pending |
 | LAT-R012 | 10,21 | Replay window records encoded frames and ACK retires exact ranges | `include/lattice/replay.hpp`, `src/replay/replay_window.cpp` | `AckRangesRetireExactly`, `RetransmitBytesIdentical`, `AckPayloadRoundTripRejectsOverlap` | Implemented | pending |
-| LAT-R013 | 11,21 | Gateway rejects opaque schema-mismatched forwarding | `include/lattice/gateway.hpp`, `src/gateway/gateway.cpp` | gateway fuzz target | Implemented | pending |
+| LAT-R013 | 11,21 | Gateway route creation, typed translation, limit revalidation, and schema-mismatch rejection | `include/lattice/gateway.hpp`, `src/gateway/gateway.cpp` | `GatewayCreatesRouteAndTransformsPayload`, `GatewayTranslationRevalidatesLimit`, `OpaqueForwardRequiresSameSchema`, gateway fuzz target | Implemented | pending |
 | LAT-R014 | 14 | Frame fuzz target calls production decoder | `fuzz/lattice_frame_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
 | LAT-R015 | 14 | Connection event fuzz target calls production engines | `fuzz/lattice_connection_event_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
 | LAT-R016 | 14 | Gateway trace fuzz target calls production gateway policy | `fuzz/lattice_gateway_trace_fuzz.cpp` | smoke command documented | Implemented, not run | pending |
 | LAT-R017 | 11 | CLI dump/replay/probe command surface | `tools/lattice.cpp` | `lattice.exe probe --memory` passed | Verified | pending |
-| LAT-R018 | 13,21 | Multi-connection loop sharding and bounded plugin executor | none | none | Not started | pending |
+| LAT-R018 | 13,21 | Multi-connection loop sharding and bounded plugin executor | `include/lattice/executor.hpp`, `src/connection/event_loop.cpp` | `ExecutorBoundsAdmission`, `ExecutorDrainsDeterministically`, `ExecutorCancelPreventsLateRun` | In progress | pending |
 | LAT-R019 | 21 | RESUME epoch validation, keepalive, retransmission timers | `ReplayWindow`, `TimerWheel`, `ConnectionEngine` partially | `ResumeWindowTooOldRejects`, `StaleTimerIgnoredAfterCancel`, `HandshakeTimeoutClosesConnection`, `PingProducesPongAndEvent`, `ResumeTranscriptMismatchRejects` | In progress | pending |
 | LAT-R020 | 18 | Performance budget measurement | `docs/PERFORMANCE.md` | no local measurements | Blocked by toolchain | pending |
 | LAT-R021 | 24 | Required documentation deliverables | `README.md`, `docs/*`, root docs | review only | Implemented | pending |

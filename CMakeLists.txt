@@ -16,6 +16,7 @@ set(CMAKE_CXX_EXTENSIONS OFF)
 add_library(lattice_core
   src/format/frame_codec.cpp
   src/connection/negotiator.cpp
+  src/connection/event_loop.cpp
   src/channel/channel_state.cpp
   src/replay/replay_window.cpp
   src/replay/trace.cpp
@@ -39,6 +40,8 @@ add_executable(lattice_tests
   tests/unit/frame_tests.cpp
   tests/unit/channel_tests.cpp
   tests/unit/flow_tests.cpp
+  tests/unit/gateway_tests.cpp
+  tests/unit/executor_tests.cpp
   tests/unit/plugin_tests.cpp
   tests/unit/replay_tests.cpp
   tests/unit/scheduler_tests.cpp

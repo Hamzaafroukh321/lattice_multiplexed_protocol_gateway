@@ -19,8 +19,8 @@ LAT-026 partially: plugin leases now make unregister wait for active dispatch le
 Next source tickets:
 
 - Implement Unix-domain transport where the target platform supports it.
-- Expand gateway route table and typed translation beyond schema checks.
-- Add loop sharding and bounded executor queues.
+- Integrate gateway routes into two-sided connection forwarding scenarios.
+- Integrate `DeterministicExecutor` with asynchronous plugin execution instead of using synchronous dispatch by default.
 - Add long-running sequence wrap, generation wrap, backpressure, allocation-failure, and compatibility fixtures.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
@@ -37,7 +37,8 @@ Next source tickets:
 - `TraceLog`: deterministic `LTXTRACE/1` serialization and parsing.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active dispatch leases exist.
-- `Gateway`: exact schema-match forwarding policy.
+- `Gateway`: route IDs, exact schema-match forwarding policy, typed translators, and destination limit checks.
+- `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch.
 - CLI and fuzz smoke targets.
 
@@ -71,4 +72,4 @@ Next source tickets:
 
 ## Last Verified Commit
 
-`051d70b98006eae1ed1f4049ee1b6e7eb7b47991`. Verification is source-level only until a toolchain is available.
+`ff600e0c5e88b36d5227c6b6a04edcd7236676eb`.
