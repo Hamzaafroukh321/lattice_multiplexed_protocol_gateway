@@ -689,9 +689,18 @@ Result<std::vector<Bytes>> ConnectionEngine::handle_resume(const Frame& frame) {
   if (!can_resume) {
     return can_resume.error();
   }
+  auto retained = replay_.retained_from(request.value().epoch, request.value().first_required_seq);
+  if (!retained) {
+    return retained.error();
+  }
   state_ = ConnectionState::active;
   events_.push_back(ConnectionEvent{ConnectionEvent::Kind::resumed, ChannelId{}, 0U, {}, std::nullopt});
-  return std::vector<Bytes>{};
+  std::vector<Bytes> out;
+  out.reserve(retained.value().size());
+  for (const ReplayEntry& entry : retained.value()) {
+    out.push_back(entry.encoded);
+  }
+  return out;
 }
 
 Result<std::vector<Bytes>> ConnectionEngine::emit(Frame frame) {

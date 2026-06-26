@@ -20,7 +20,6 @@ Next source tickets:
 
 - Add long-running sequence wrap, generation wrap, backpressure, allocation-failure, and compatibility fixtures.
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
-- Extend RESUME from validation/retry primitives to retained-state continuation.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
 ## Completed Modules
@@ -31,7 +30,7 @@ Next source tickets:
 - `ChannelTable`: generated channels, generations, tombstones, remote OPEN acceptance, half-close/reset.
 - `Reassembler`: bounded non-overlapping fragments and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
-- `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes.
+- `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, and exact retained suffix lookup for RESUME.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
 - `OutboundScheduler`: bounded control/data queues with per-channel sequence order.
 - `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
@@ -39,14 +38,14 @@ Next source tickets:
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, and shard validation.
-- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, with optional executor-backed plugin dispatch and PONG deadline liveness timeout.
+- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
 - CLI `probe`, `dump`, and canonical `replay` verification commands plus fuzz smoke targets.
 
 ## In Progress Modules
 
 - `ConnectionEngine` routes emitted frames through `OutboundScheduler`, but partial-write transport integration remains shallow.
-- Keepalive/retransmission timers are integrated; retained resume continuation remains incomplete.
+- Keepalive/retransmission timers and in-process retained RESUME continuation are integrated; durable retained state across process restart remains incomplete.
 - CLI Unix endpoint serving and policy-file bridge mode remain incomplete.
 
 ## Known Blockers

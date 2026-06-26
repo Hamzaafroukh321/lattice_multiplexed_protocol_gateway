@@ -142,6 +142,27 @@ static void ResumeTranscriptMismatchRejects() {
   CHECK(rejected.error().code == ErrorCode::resume_rejected);
 }
 
+static void ResumeReturnsRetainedFramesFromRequestedSequence() {
+  ConnectionEngine left(LocalPolicy{}, make_registry());
+  ConnectionEngine right(LocalPolicy{}, make_registry());
+  auto left_hello = left.start();
+  auto right_hello = right.start();
+  REQUIRE_OK(left_hello);
+  REQUIRE_OK(right_hello);
+  REQUIRE_OK(right.receive(left_hello.value()[0], false));
+  REQUIRE_OK(left.receive(right_hello.value()[0], false));
+  ResumeRequest request;
+  request.transcript_hash = left.capabilities()->transcript_hash;
+  request.epoch = 1U;
+  request.first_required_seq = 1U;
+  auto frame = right.resume(request);
+  REQUIRE_OK(frame);
+  auto retained = left.receive(frame.value()[0], false);
+  REQUIRE_OK(retained);
+  CHECK(!retained.value().empty());
+  CHECK(retained.value()[0] == left_hello.value()[0]);
+}
+
 static void AsyncResultAfterResetDropped() {
   ConnectionEngine left(LocalPolicy{}, make_registry());
   ConnectionEngine right(LocalPolicy{}, make_registry());
@@ -206,6 +227,8 @@ void register_multiplex_tests() {
   add_test("MissedIdlePongClosesConnection", &MissedIdlePongClosesConnection);
   add_test("IdlePongSatisfiesLivenessDeadline", &IdlePongSatisfiesLivenessDeadline);
   add_test("ResumeTranscriptMismatchRejects", &ResumeTranscriptMismatchRejects);
+  add_test("ResumeReturnsRetainedFramesFromRequestedSequence",
+           &ResumeReturnsRetainedFramesFromRequestedSequence);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
   add_test("PluginDispatchCanRunOnDeterministicExecutor",
            &PluginDispatchCanRunOnDeterministicExecutor);

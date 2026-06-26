@@ -9,12 +9,12 @@ Implemented now:
 - ACK payloads have a canonical epoch/count/range encoding and reject overlapping ranges.
 - `TimerWheel` schedules, cancels, and expires generation-tagged retry/idle/drain timers deterministically.
 - `ResumeProof` rejects requests outside the retained replay window.
+- Valid RESUME requests return the exact retained encoded frame suffix from `first_required_seq`.
 - `TraceLog` serializes, parses, and verifies canonical deterministic `LTXTRACE/1` replay summaries.
 - `ConnectionEngine` handles ACK, PING/PONG, missed-PONG liveness timeout, malformed RESUME rejection, handshake timeout, retry timer, idle ping, and bounded drain timer paths.
 
 Remaining full-version work:
 
-- RESUME frame validation against prior session ID and transcript hash inside `ConnectionEngine`.
 - Durable retained state across process restart.
 - Full replay tool that re-injects API events, timers, transport completions, and plugin results beyond the current canonical summary verification.
 

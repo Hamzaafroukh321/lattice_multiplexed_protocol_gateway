@@ -96,6 +96,24 @@ Result<std::vector<ReplayEntry>> ReplayWindow::due_for_retry(std::uint8_t retry_
   return due;
 }
 
+Result<std::vector<ReplayEntry>> ReplayWindow::retained_from(
+    std::uint16_t epoch, std::uint32_t first_required_seq) const {
+  ResumeProof proof;
+  proof.epoch = epoch;
+  proof.first_required_seq = first_required_seq;
+  auto resumable = can_resume(proof);
+  if (!resumable) {
+    return resumable.error();
+  }
+  std::vector<ReplayEntry> retained;
+  for (const ReplayEntry& entry : entries_) {
+    if (entry.frame_seq >= first_required_seq) {
+      retained.push_back(entry);
+    }
+  }
+  return retained;
+}
+
 Result<void> ReplayWindow::can_resume(const ResumeProof& proof) const {
   if (proof.epoch != epoch_) {
     return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
