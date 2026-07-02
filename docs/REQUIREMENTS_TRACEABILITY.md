@@ -2,7 +2,7 @@
 
 | ID | Specification section | Requirement | Implementation files | Test/fuzz evidence | Status | Commit |
 |---|---|---|---|---|---|---|
-| LAT-R001 | 1,17 | C++20 CMake project with presets, warnings, sanitizer options | `CMakeLists.txt`, `CMakePresets.json`, `cmake/*` | Configure blocked locally; commands documented | Implemented | pending |
+| LAT-R001 | 1,17 | C++20 CMake project with presets, warnings, sanitizer options, and local Clang/Ninja presets | `CMakeLists.txt`, `CMakePresets.json`, `cmake/*` | `local-clang-debug` configure/build/test passed | Implemented | pending |
 | LAT-R002 | 12 | Stable scoped error model and close recommendations | `include/lattice/error.hpp`, `src/format/frame_codec.cpp` | Error assertions in tests | Implemented | pending |
 | LAT-R003 | 7 | LTX1 fixed header, ULEB128, CRC32C, canonical TLVs, and allocation-boundary rejection | `include/lattice/frame.hpp`, `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, `CrcMismatchClosesConnection`, `HelloCanonicalOrder`, `EncodeRejectsOversizedFrameBeforeTransport`, `EncodeRejectsOversizedExtensionHeader` | Implemented | pending |
 | LAT-R004 | 7 | Streaming parser distinguishes need-more, truncation, malformed bytes, optional unknown extensions, and required unknown extension rejection | `src/format/frame_codec.cpp` | `FrameSplitEveryByte`, `UnknownOptionalExtensionIsSkipped`, `UnknownRequiredExtensionRejects`, frame fuzz target | Implemented | pending |

@@ -37,13 +37,47 @@
       "cacheVariables": {
         "LATTICE_TSAN": "ON"
       }
+    },
+    {
+      "name": "local-clang-base",
+      "hidden": true,
+      "generator": "Ninja",
+      "cacheVariables": {
+        "CMAKE_CXX_COMPILER": "C:/Program Files/LLVM/bin/clang++.exe",
+        "CMAKE_MAKE_PROGRAM": "$env{LOCALAPPDATA}/Microsoft/WinGet/Packages/Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe/ninja.exe"
+      }
+    },
+    {
+      "name": "local-clang-debug",
+      "displayName": "Local Clang Debug",
+      "inherits": ["debug", "local-clang-base"],
+      "binaryDir": "${sourceDir}/build/local-clang-debug"
+    },
+    {
+      "name": "local-clang-release",
+      "displayName": "Local Clang Release",
+      "inherits": ["release", "local-clang-base"],
+      "binaryDir": "${sourceDir}/build/local-clang-release"
+    },
+    {
+      "name": "local-clang-asan-release",
+      "displayName": "Local Clang ASan+UBSan Release",
+      "inherits": ["release", "local-clang-base"],
+      "binaryDir": "${sourceDir}/build/local-clang-asan-release",
+      "cacheVariables": {
+        "LATTICE_ASAN": "ON",
+        "LATTICE_UBSAN": "ON"
+      }
     }
   ],
   "buildPresets": [
     { "name": "debug", "configurePreset": "debug" },
     { "name": "release", "configurePreset": "release" },
     { "name": "asan", "configurePreset": "asan" },
-    { "name": "tsan", "configurePreset": "tsan" }
+    { "name": "tsan", "configurePreset": "tsan" },
+    { "name": "local-clang-debug", "configurePreset": "local-clang-debug" },
+    { "name": "local-clang-release", "configurePreset": "local-clang-release" },
+    { "name": "local-clang-asan-release", "configurePreset": "local-clang-asan-release" }
   ],
   "testPresets": [
     {
@@ -54,6 +88,21 @@
     {
       "name": "asan",
       "configurePreset": "asan",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "local-clang-debug",
+      "configurePreset": "local-clang-debug",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "local-clang-release",
+      "configurePreset": "local-clang-release",
+      "output": { "outputOnFailure": true }
+    },
+    {
+      "name": "local-clang-asan-release",
+      "configurePreset": "local-clang-asan-release",
       "output": { "outputOnFailure": true }
     }
   ]

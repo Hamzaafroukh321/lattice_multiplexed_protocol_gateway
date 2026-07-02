@@ -39,11 +39,10 @@ cmake --build --preset debug
 ctest --preset debug
 ```
 
-The local environment can build with explicit tool paths:
+This local environment also has checked-in Clang/Ninja presets:
 
 ```powershell
-$env:PATH='C:\Program Files\LLVM\bin;C:\Users\Hamz\AppData\Local\Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe;C:\Program Files\CMake\bin;' + $env:PATH
-cmake -S . -B build/debug -G Ninja -DCMAKE_BUILD_TYPE=Debug -DCMAKE_CXX_COMPILER='C:\Program Files\LLVM\bin\clang++.exe' -DCMAKE_MAKE_PROGRAM='C:\Users\Hamz\AppData\Local\Microsoft\WinGet\Packages\Ninja-build.Ninja_Microsoft.Winget.Source_8wekyb3d8bbwe\ninja.exe'
-cmake --build build/debug
-ctest --test-dir build/debug --output-on-failure
+cmake --preset local-clang-debug
+cmake --build --preset local-clang-debug
+ctest --preset local-clang-debug
 ```

@@ -19,7 +19,6 @@ LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered s
 Next source tickets:
 
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
-- Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
 ## Completed Modules
 
@@ -54,8 +53,8 @@ Next source tickets:
 
 ## Build And Test Status
 
-- Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using explicit tool paths.
-- Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using explicit tool paths.
+- Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-debug` preset.
+- Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in local Clang/Ninja path.
 - Unit/integration tests: Passed in Debug and Release.
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
