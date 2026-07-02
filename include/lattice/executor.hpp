@@ -5,6 +5,8 @@
 #include <cstdint>
 #include <deque>
 #include <functional>
+#include <memory>
+#include <optional>
 #include <vector>
 
 namespace lattice {
@@ -43,6 +45,26 @@ class ConnectionShardRouter {
 
  private:
   DeterministicExecutor& executor_;
+};
+
+class ThreadedExecutor {
+ public:
+  explicit ThreadedExecutor(std::size_t capacity, std::uint32_t shards = 1);
+  ThreadedExecutor(const ThreadedExecutor&) = delete;
+  ThreadedExecutor& operator=(const ThreadedExecutor&) = delete;
+  ~ThreadedExecutor();
+
+  [[nodiscard]] Result<std::uint64_t> submit(std::uint32_t shard,
+                                             std::function<Result<void>()> task);
+  [[nodiscard]] Result<void> wait_idle();
+  [[nodiscard]] Result<void> shutdown();
+  [[nodiscard]] std::size_t queued() const;
+  [[nodiscard]] std::uint32_t shards() const { return shard_count_; }
+
+ private:
+  struct Impl;
+  std::unique_ptr<Impl> impl_;
+  std::uint32_t shard_count_{1};
 };
 
 }  // namespace lattice

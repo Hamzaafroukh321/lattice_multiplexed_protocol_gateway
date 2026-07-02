@@ -8,17 +8,16 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, deterministic/threaded executor primitives, executor-backed plugin dispatch, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-017/LAT-026 advanced: Unix socket bridge now negotiates both endpoints and enters a POSIX `select()` loop that feeds production `ConnectionEngine` instances and forwards delivered messages through the gateway data-plane pump.
+LAT-018 advanced: a bounded `ThreadedExecutor` now runs per-shard worker queues with serial order inside each shard, stable shutdown, and first-error reporting.
 
 ## Next Actionable Ticket
 
 Next source tickets:
 
-- Add threaded runtime execution beyond deterministic executor sharding.
 - Run POSIX live socket bridge smoke on a Linux host.
 - Run supported TSan and longer soak/performance suites.
 
@@ -38,7 +37,7 @@ Next source tickets:
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, connection data-plane pumping into active destination channels, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
-- `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
+- `DeterministicExecutor`/`ThreadedExecutor`: bounded task admission, deterministic drain order for tests, per-shard threaded runtime execution, cancellation/shutdown, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export with next-sequence restoration, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
 - CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/continuous bridge loop, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
@@ -57,13 +56,13 @@ Next source tickets:
 ## Build And Test Status
 
 - Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-debug` preset.
-- Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in local Clang/Ninja path.
-- Unit/integration and CLI CTest smokes: Passed in Debug and Release.
+- Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-release` preset and the generic `release` tree.
+- Unit/integration and CLI CTest smokes: Passed in Debug, Release, ASan/UBSan Release, and local Clang Release.
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Blocked on Windows Clang target support.
-- Benchmark: `lattice_bench` measured 1097.48 MiB/s in the final verification sample and 1.35-1.87 GiB/s in repeated samples after cached SSE4.2 CRC32C; this meets the MVP frame decode target here.
-- Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 100` passed memory probe repetitions.
+- Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1189.73, 1186.52, 1278.26, and 1306.83 MiB/s in current samples; this meets the MVP frame decode target with the pinned local Clang preset. The generic `build/release` tree sampled lower on this host after full rebuild.
+- Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 500` passed memory probe repetitions.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" --glob "!docs/IMPLEMENTATION_STATUS.md" .` returned no matches.
 

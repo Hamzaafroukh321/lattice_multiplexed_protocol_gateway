@@ -35,3 +35,4 @@
 - Added gateway route pumping into active destination connections.
 - Added durable replay snapshot store and CLI memory snapshot load/save smoke.
 - Added POSIX Unix bridge event loop over negotiated endpoints.
+- Added bounded threaded executor shard runtime.
