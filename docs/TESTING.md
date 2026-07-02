@@ -18,6 +18,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Partial write retention for data and control queues.
 - Deterministic trace serialization/parsing and canonical replay summary verification.
 - Published LTX/1 compatibility fixture replay verification.
+- CLI memory bridge route smoke.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.

@@ -24,3 +24,4 @@
 - Added explicit channel generation wrap rejection coverage.
 - Added send sequence wrap rejection before `uint32_t` rollover.
 - Added explicit frame codec allocation-boundary rejection tests.
+- Added `lattice bridge --memory` as a portable gateway route smoke command.

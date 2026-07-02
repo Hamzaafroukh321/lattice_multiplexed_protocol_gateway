@@ -1,4 +1,5 @@
 #include "lattice/connection.hpp"
+#include "lattice/gateway.hpp"
 #include "lattice/trace.hpp"
 
 #include <fstream>
@@ -118,9 +119,46 @@ int fixture_memory_hello() {
   return 0;
 }
 
+int bridge_memory() {
+  lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
+  lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
+  auto left_hello = left.start();
+  auto right_hello = right.start();
+  if (!left_hello || !right_hello) {
+    std::cerr << "lattice: failed to emit bridge HELLO\n";
+    return 10;
+  }
+  auto right_result = right.receive(left_hello.value()[0], false);
+  auto left_result = left.receive(right_hello.value()[0], false);
+  if (!right_result || !left_result || !left.capabilities() || !right.capabilities()) {
+    std::cerr << "lattice: bridge negotiation failed\n";
+    return 3;
+  }
+  lattice::Gateway gateway;
+  auto route = gateway.create_route(lattice::ChannelId{1U, 1U},
+                                    lattice::ChannelId{2U, 1U}, 7U);
+  if (!route) {
+    std::cerr << route.error().stable_code() << ": " << route.error().detail << '\n';
+    return 3;
+  }
+  auto bridged = gateway.bridge_message(left.capabilities().value(), right.capabilities().value(),
+                                        lattice::ChannelId{1U, 1U}, lattice::Bytes{'o', 'k'});
+  if (!bridged) {
+    std::cerr << bridged.error().stable_code() << ": " << bridged.error().detail << '\n';
+    return 3;
+  }
+  std::cout << "bridge=memory route=" << bridged.value().route_id
+            << " source=" << bridged.value().source.str()
+            << " destination=" << bridged.value().destination.str()
+            << " family=" << bridged.value().family_id
+            << " bytes=" << bridged.value().payload.size() << '\n';
+  return 0;
+}
+
 void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
+            << "  lattice bridge --memory\n"
             << "  lattice dump <file>\n"
             << "  lattice replay <trace-file>\n"
             << "  lattice fixture --memory-hello\n";
@@ -136,6 +174,9 @@ int main(int argc, char** argv) {
   const std::string command = argv[1];
   if (command == "probe" && argc == 3 && std::string(argv[2]) == "--memory") {
     return probe_memory();
+  }
+  if (command == "bridge" && argc == 3 && std::string(argv[2]) == "--memory") {
+    return bridge_memory();
   }
   if (command == "dump" && argc == 3) {
     return dump_file(argv[2]);
