@@ -5,6 +5,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Frame split-at-every-byte streaming decode.
 - CRC mismatch rejection.
 - Canonical extension ordering.
+- Oversized frame and extension-header rejection.
 - Channel generation increments, wrap rejection, and stale ID rejection.
 - Send sequence wrap rejection before zero.
 - Fragment completion and conflicting overlap.

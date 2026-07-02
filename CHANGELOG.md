@@ -23,3 +23,4 @@
 - Added sparse-fragment retained budget enforcement and retained-byte cleanup on reassembly reset.
 - Added explicit channel generation wrap rejection coverage.
 - Added send sequence wrap rejection before `uint32_t` rollover.
+- Added explicit frame codec allocation-boundary rejection tests.

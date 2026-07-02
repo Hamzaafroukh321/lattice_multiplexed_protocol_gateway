@@ -96,10 +96,36 @@ static void UnknownRequiredExtensionRejects() {
   CHECK(events[0].error->code == ErrorCode::unknown_required_feature);
 }
 
+static void EncodeRejectsOversizedFrameBeforeTransport() {
+  FrameCodec codec(FrameLimits{32U, 16U});
+  Frame frame;
+  frame.type = FrameType::data;
+  frame.channel = ChannelId{1U, 1U};
+  frame.frame_seq = 1U;
+  frame.payload = Bytes(64U, 0xABU);
+  auto encoded = codec.encode(frame);
+  CHECK(!encoded);
+  CHECK(encoded.error().code == ErrorCode::frame_too_large);
+}
+
+static void EncodeRejectsOversizedExtensionHeader() {
+  FrameCodec codec(FrameLimits{128U, 4U});
+  Frame frame;
+  frame.type = FrameType::hello;
+  frame.frame_seq = 1U;
+  frame.extensions = {Extension{1U, false, Bytes{'a', 'b', 'c', 'd'}}};
+  auto encoded = codec.encode(frame);
+  CHECK(!encoded);
+  CHECK(encoded.error().code == ErrorCode::header_too_large);
+}
+
 void register_frame_tests() {
   add_test("FrameSplitEveryByte", &FrameSplitEveryByte);
   add_test("CrcMismatchClosesConnection", &CrcMismatchClosesConnection);
   add_test("HelloCanonicalOrder", &HelloCanonicalOrder);
   add_test("UnknownOptionalExtensionIsSkipped", &UnknownOptionalExtensionIsSkipped);
   add_test("UnknownRequiredExtensionRejects", &UnknownRequiredExtensionRejects);
+  add_test("EncodeRejectsOversizedFrameBeforeTransport",
+           &EncodeRejectsOversizedFrameBeforeTransport);
+  add_test("EncodeRejectsOversizedExtensionHeader", &EncodeRejectsOversizedExtensionHeader);
 }
