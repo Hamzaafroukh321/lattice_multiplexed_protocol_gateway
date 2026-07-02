@@ -11,13 +11,14 @@ Implemented now:
 - `ResumeProof` rejects requests outside the retained replay window.
 - Valid RESUME requests return the exact retained encoded frame suffix from `first_required_seq`.
 - `ReplayWindow` serializes and restores canonical `LTXREPLAY/1` retained-state snapshots.
+- `ConnectionEngine` can export retained replay snapshots and load them before `start()`.
 - Corrupt, unordered, or malformed replay snapshots reject with `ResumeRejected`.
 - `TraceLog` serializes, parses, and verifies canonical deterministic `LTXTRACE/1` replay summaries.
 - `ConnectionEngine` handles ACK, PING/PONG, missed-PONG liveness timeout, malformed RESUME rejection, handshake timeout, retry timer, idle ping, and bounded drain timer paths.
 
 Remaining full-version work:
 
-- Process-level integration for loading `LTXREPLAY/1` snapshots during startup.
+- CLI/daemon durable storage lifecycle integration for `LTXREPLAY/1` snapshots.
 - Full replay tool that re-injects API events, timers, transport completions, and plugin results beyond the current canonical summary verification.
 
 Recovery must reject incomplete retained state rather than inventing delivery summaries.

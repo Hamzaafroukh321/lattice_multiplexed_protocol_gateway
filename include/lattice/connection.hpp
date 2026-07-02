@@ -77,6 +77,8 @@ class ConnectionEngine {
   [[nodiscard]] Result<void> complete_plugin(PluginCompletion completion);
   [[nodiscard]] Result<std::vector<Bytes>> advance_time(std::uint64_t now_ms);
   [[nodiscard]] std::vector<Bytes> flush_outbound(std::size_t writable_bytes);
+  [[nodiscard]] Result<std::string> export_replay_snapshot() const;
+  [[nodiscard]] Result<void> load_replay_snapshot(const std::string& text);
   [[nodiscard]] Result<std::vector<Bytes>> half_close(ChannelId id, Direction direction);
   [[nodiscard]] Result<std::vector<Bytes>> reset(ChannelId id);
   [[nodiscard]] Result<std::vector<Bytes>> goaway();

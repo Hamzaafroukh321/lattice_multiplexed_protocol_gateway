@@ -362,6 +362,22 @@ std::vector<Bytes> ConnectionEngine::flush_outbound(std::size_t writable_bytes) 
   return out;
 }
 
+Result<std::string> ConnectionEngine::export_replay_snapshot() const {
+  return replay_.serialize_retained();
+}
+
+Result<void> ConnectionEngine::load_replay_snapshot(const std::string& text) {
+  if (state_ != ConnectionState::created) {
+    return state_error("replay snapshot can only load before start");
+  }
+  auto restored = ReplayWindow::restore_retained(text);
+  if (!restored) {
+    return restored.error();
+  }
+  replay_ = restored.take_value();
+  return {};
+}
+
 Result<std::vector<Bytes>> ConnectionEngine::half_close(ChannelId id, Direction direction) {
   if (!channels_) {
     return state_error("half-close before channel table exists");

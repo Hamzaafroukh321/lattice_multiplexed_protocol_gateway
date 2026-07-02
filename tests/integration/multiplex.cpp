@@ -163,6 +163,31 @@ static void ResumeReturnsRetainedFramesFromRequestedSequence() {
   CHECK(retained.value()[0] == left_hello.value()[0]);
 }
 
+static void EngineLoadsReplaySnapshotBeforeStart() {
+  ConnectionEngine source(LocalPolicy{}, make_registry());
+  auto hello = source.start();
+  REQUIRE_OK(hello);
+  auto snapshot = source.export_replay_snapshot();
+  REQUIRE_OK(snapshot);
+
+  ConnectionEngine restored(LocalPolicy{}, make_registry());
+  REQUIRE_OK(restored.load_replay_snapshot(snapshot.value()));
+  auto restored_snapshot = restored.export_replay_snapshot();
+  REQUIRE_OK(restored_snapshot);
+  CHECK(restored_snapshot.value() == snapshot.value());
+}
+
+static void EngineRejectsReplaySnapshotAfterStart() {
+  ConnectionEngine source(LocalPolicy{}, make_registry());
+  auto hello = source.start();
+  REQUIRE_OK(hello);
+  auto snapshot = source.export_replay_snapshot();
+  REQUIRE_OK(snapshot);
+  auto rejected = source.load_replay_snapshot(snapshot.value());
+  CHECK(!rejected);
+  CHECK(rejected.error().code == ErrorCode::illegal_state);
+}
+
 static void AsyncResultAfterResetDropped() {
   ConnectionEngine left(LocalPolicy{}, make_registry());
   ConnectionEngine right(LocalPolicy{}, make_registry());
@@ -229,6 +254,8 @@ void register_multiplex_tests() {
   add_test("ResumeTranscriptMismatchRejects", &ResumeTranscriptMismatchRejects);
   add_test("ResumeReturnsRetainedFramesFromRequestedSequence",
            &ResumeReturnsRetainedFramesFromRequestedSequence);
+  add_test("EngineLoadsReplaySnapshotBeforeStart", &EngineLoadsReplaySnapshotBeforeStart);
+  add_test("EngineRejectsReplaySnapshotAfterStart", &EngineRejectsReplaySnapshotAfterStart);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
   add_test("PluginDispatchCanRunOnDeterministicExecutor",
            &PluginDispatchCanRunOnDeterministicExecutor);
