@@ -53,4 +53,24 @@ class UnixTransport {
   int fd_{-1};
 };
 
+class UnixListener {
+ public:
+  UnixListener() = default;
+  explicit UnixListener(int fd, std::string path);
+  UnixListener(const UnixListener&) = delete;
+  UnixListener& operator=(const UnixListener&) = delete;
+  UnixListener(UnixListener&& other) noexcept;
+  UnixListener& operator=(UnixListener&& other) noexcept;
+  ~UnixListener();
+
+  [[nodiscard]] static Result<UnixListener> bind_path(const std::string& path);
+  [[nodiscard]] Result<UnixTransport> accept_one();
+  void close();
+  [[nodiscard]] bool valid() const { return fd_ >= 0; }
+
+ private:
+  int fd_{-1};
+  std::string path_;
+};
+
 }  // namespace lattice

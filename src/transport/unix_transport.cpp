@@ -130,4 +130,89 @@ void UnixTransport::close() {
   fd_ = -1;
 }
 
+UnixListener::UnixListener(int fd, std::string path) : fd_(fd), path_(std::move(path)) {}
+
+UnixListener::UnixListener(UnixListener&& other) noexcept
+    : fd_(other.fd_), path_(std::move(other.path_)) {
+  other.fd_ = -1;
+}
+
+UnixListener& UnixListener::operator=(UnixListener&& other) noexcept {
+  if (this != &other) {
+    close();
+    fd_ = other.fd_;
+    path_ = std::move(other.path_);
+    other.fd_ = -1;
+  }
+  return *this;
+}
+
+UnixListener::~UnixListener() {
+  close();
+}
+
+Result<UnixListener> UnixListener::bind_path(const std::string& path) {
+#ifdef _WIN32
+  (void)path;
+  return transport_error("Unix-domain listeners are not available on this platform");
+#else
+  if (path.empty() || path.size() >= sizeof(sockaddr_un::sun_path)) {
+    return transport_error("Unix listener path is empty or too long");
+  }
+  const int fd = ::socket(AF_UNIX, SOCK_STREAM, 0);
+  if (fd < 0) {
+    return transport_error(std::string("socket failed: ") + std::strerror(errno));
+  }
+  sockaddr_un addr{};
+  addr.sun_family = AF_UNIX;
+  std::strncpy(addr.sun_path, path.c_str(), sizeof(addr.sun_path) - 1U);
+  (void)::unlink(path.c_str());
+  if (::bind(fd, reinterpret_cast<sockaddr*>(&addr), sizeof(addr)) != 0) {
+    const std::string detail = std::string("bind failed: ") + std::strerror(errno);
+    ::close(fd);
+    return transport_error(detail);
+  }
+  if (::listen(fd, 16) != 0) {
+    const std::string detail = std::string("listen failed: ") + std::strerror(errno);
+    ::close(fd);
+    (void)::unlink(path.c_str());
+    return transport_error(detail);
+  }
+  return UnixListener(fd, path);
+#endif
+}
+
+Result<UnixTransport> UnixListener::accept_one() {
+#ifdef _WIN32
+  return transport_error("Unix-domain listeners are not available on this platform");
+#else
+  if (fd_ < 0) {
+    return transport_error("accept on closed Unix listener");
+  }
+  for (;;) {
+    const int accepted = ::accept(fd_, nullptr, nullptr);
+    if (accepted >= 0) {
+      return UnixTransport(accepted);
+    }
+    if (errno == EINTR) {
+      continue;
+    }
+    return transport_error(std::string("accept failed: ") + std::strerror(errno));
+  }
+#endif
+}
+
+void UnixListener::close() {
+#ifndef _WIN32
+  if (fd_ >= 0) {
+    (void)::close(fd_);
+  }
+  if (!path_.empty()) {
+    (void)::unlink(path_.c_str());
+  }
+#endif
+  fd_ = -1;
+  path_.clear();
+}
+
 }  // namespace lattice

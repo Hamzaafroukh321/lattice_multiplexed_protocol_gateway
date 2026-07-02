@@ -20,7 +20,7 @@ Lattice is organized as a small set of deterministic modules.
 
 `DeterministicExecutor` provides bounded task admission and deterministic task draining for tests, plugin dispatch, and loop sharding. `ConnectionShardRouter` assigns connection IDs to stable executor shards so multi-connection work preserves actor confinement.
 
-`UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. Windows builds return stable transport-scoped unsupported errors for those operations.
+`UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. `UnixListener` provides POSIX bind/listen/accept primitives for endpoint integration. Windows builds return stable transport-scoped unsupported errors for those operations.
 
 `OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels. Short writes return exact prefix chunks and keep the unsent tail at the head of its queue.
 

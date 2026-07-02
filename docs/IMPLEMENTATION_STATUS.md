@@ -37,14 +37,14 @@ Next source tickets:
 - `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
-- `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
+- `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
 - CLI `probe`, memory `bridge`, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## In Progress Modules
 
 - Keepalive/retransmission timers and in-process retained RESUME continuation are integrated; durable retained state across process restart remains incomplete.
-- CLI Unix endpoint serving remains incomplete; portable memory bridge and policy-file parsing are implemented.
+- CLI Unix endpoint pumping remains incomplete; POSIX listener/transport primitives, portable memory bridge, and policy-file parsing are implemented.
 
 ## Known Blockers
 
@@ -68,7 +68,7 @@ Next source tickets:
 
 - ADR-0001 records a compact MVP implementation with memory transport and deterministic single-loop state.
 - ADR-0002 records static C++ plugin registration instead of dynamic code loading.
-- ADR-0003 records memory transport plus POSIX Unix transport API behavior; CLI endpoint serving remains partial-result exit `6` on this Windows environment.
+- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; CLI endpoint pumping remains partial-result exit `6` on this Windows environment.
 
 ## Last Verified Commit
 

@@ -29,7 +29,21 @@ static void UnixTransportPairRoundTripOrPortableError() {
 #endif
 }
 
+static void UnixListenerBindOrPortableError() {
+#ifdef _WIN32
+  auto listener = UnixListener::bind_path("lattice-test.sock");
+  CHECK(!listener);
+  CHECK(listener.error().scope == ErrorScope::transport);
+  CHECK(listener.error().code == ErrorCode::transport_error);
+#else
+  auto listener = UnixListener::bind_path("/tmp/lattice-listener-test.sock");
+  REQUIRE_OK(listener);
+  CHECK(listener.value().valid());
+#endif
+}
+
 void register_transport_tests() {
   add_test("UnixTransportPairRoundTripOrPortableError",
            &UnixTransportPairRoundTripOrPortableError);
+  add_test("UnixListenerBindOrPortableError", &UnixListenerBindOrPortableError);
 }
