@@ -62,6 +62,22 @@ lattice_apply_warnings(lattice_tests)
 lattice_apply_sanitizers(lattice_tests)
 add_test(NAME lattice_tests COMMAND lattice_tests)
 
+add_test(NAME lattice_cli_probe_memory COMMAND lattice probe --memory)
+add_test(NAME lattice_cli_bridge_memory_policy
+  COMMAND lattice bridge --memory --policy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/ltx1/memory_bridge.policy)
+if(WIN32)
+  add_test(NAME lattice_cli_probe_unix_unsupported COMMAND lattice probe --socket lattice-test.sock)
+  add_test(NAME lattice_cli_serve_unix_unsupported
+    COMMAND lattice serve --socket lattice-test.sock --plugin echo)
+  add_test(NAME lattice_cli_bridge_unix_unsupported
+    COMMAND lattice bridge --left left.sock --right right.sock --policy
+            ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/ltx1/memory_bridge.policy)
+  set_tests_properties(lattice_cli_probe_unix_unsupported
+                       lattice_cli_serve_unix_unsupported
+                       lattice_cli_bridge_unix_unsupported
+                       PROPERTIES WILL_FAIL TRUE)
+endif()
+
 foreach(fuzz_name IN ITEMS lattice_frame_fuzz lattice_connection_event_fuzz lattice_gateway_trace_fuzz)
   add_executable(${fuzz_name} fuzz/${fuzz_name}.cpp)
   target_link_libraries(${fuzz_name} PRIVATE lattice_core)

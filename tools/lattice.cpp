@@ -7,8 +7,10 @@
 #include <fstream>
 #include <iostream>
 #include <iterator>
+#include <optional>
 #include <stdexcept>
 #include <string>
+#include <vector>
 
 namespace {
 
@@ -30,6 +32,25 @@ struct BridgePolicy {
   std::uint32_t family_id{7U};
   lattice::Bytes payload{'o', 'k'};
 };
+
+struct UnixBridgeArgs {
+  std::string left;
+  std::string right;
+  std::string policy;
+};
+
+int unix_failure_exit() {
+#ifdef _WIN32
+  return 6;
+#else
+  return 3;
+#endif
+}
+
+int print_error(const lattice::Error& error, int exit_code = 3) {
+  std::cerr << error.stable_code() << ": " << error.detail << '\n';
+  return exit_code;
+}
 
 std::string trim(std::string text) {
   const auto not_space = [](unsigned char ch) { return std::isspace(ch) == 0; };
@@ -176,6 +197,79 @@ lattice::Result<BridgePolicy> read_bridge_policy(const std::string& path) {
   return policy;
 }
 
+lattice::Result<void> write_all(lattice::UnixTransport& transport,
+                                const std::vector<lattice::Bytes>& chunks) {
+  for (const auto& chunk : chunks) {
+    auto written = transport.write(chunk);
+    if (!written) {
+      return written.error();
+    }
+  }
+  return {};
+}
+
+lattice::Result<void> negotiate_unix_peer(lattice::UnixTransport& transport,
+                                          lattice::ConnectionEngine& engine) {
+  auto hello = engine.start();
+  if (!hello) {
+    return hello.error();
+  }
+  auto written = write_all(transport, hello.value());
+  if (!written) {
+    return written.error();
+  }
+
+  while (engine.state() == lattice::ConnectionState::negotiating) {
+    auto read = transport.read_some(lattice::kDefaultMaxFrame);
+    if (!read) {
+      return read.error();
+    }
+    if (read.value().empty()) {
+      return lattice::make_error(lattice::ErrorScope::transport,
+                                 lattice::ErrorCode::transport_error,
+                                 lattice::CloseAction::close_connection,
+                                 "peer closed before HELLO negotiation completed");
+    }
+    auto produced = engine.receive(read.value(), false);
+    if (!produced) {
+      return produced.error();
+    }
+    auto out = write_all(transport, produced.value());
+    if (!out) {
+      return out.error();
+    }
+  }
+  return {};
+}
+
+void print_capabilities(const char* prefix, const lattice::CapabilitySet& caps) {
+  std::cout << prefix << " LTX/" << caps.major
+            << " max_frame=" << caps.max_frame
+            << " max_message=" << caps.max_message
+            << " channels=" << caps.max_channels
+            << " plugins=" << caps.plugins.size() << '\n';
+}
+
+std::optional<UnixBridgeArgs> parse_unix_bridge_args(int argc, char** argv) {
+  UnixBridgeArgs args;
+  for (int i = 2; i + 1 < argc; i += 2) {
+    const std::string key = argv[i];
+    if (key == "--left") {
+      args.left = argv[i + 1];
+    } else if (key == "--right") {
+      args.right = argv[i + 1];
+    } else if (key == "--policy") {
+      args.policy = argv[i + 1];
+    } else {
+      return std::nullopt;
+    }
+  }
+  if ((argc % 2) != 0 || args.left.empty() || args.right.empty() || args.policy.empty()) {
+    return std::nullopt;
+  }
+  return args;
+}
+
 int dump_file(const std::string& path) {
   std::ifstream in(path, std::ios::binary);
   if (!in) {
@@ -250,6 +344,50 @@ int probe_memory() {
   return 0;
 }
 
+int probe_unix(const std::string& path) {
+  auto transport = lattice::UnixTransport::connect_path(path);
+  if (!transport) {
+    return print_error(transport.error(), unix_failure_exit());
+  }
+  lattice::ConnectionEngine engine(lattice::LocalPolicy{}, registry());
+  auto negotiated = negotiate_unix_peer(transport.value(), engine);
+  if (!negotiated) {
+    return print_error(negotiated.error(), unix_failure_exit());
+  }
+  if (!engine.capabilities()) {
+    std::cerr << "lattice: Unix probe did not negotiate capabilities\n";
+    return 10;
+  }
+  print_capabilities("transport=unix", engine.capabilities().value());
+  return 0;
+}
+
+int serve_unix(const std::string& path, const std::string& plugin) {
+  if (plugin != "echo") {
+    std::cerr << "lattice: unsupported plugin '" << plugin << "'\n";
+    return 2;
+  }
+  auto listener = lattice::UnixListener::bind_path(path);
+  if (!listener) {
+    return print_error(listener.error(), unix_failure_exit());
+  }
+  auto accepted = listener.value().accept_one();
+  if (!accepted) {
+    return print_error(accepted.error(), unix_failure_exit());
+  }
+  lattice::ConnectionEngine engine(lattice::LocalPolicy{}, registry());
+  auto negotiated = negotiate_unix_peer(accepted.value(), engine);
+  if (!negotiated) {
+    return print_error(negotiated.error(), unix_failure_exit());
+  }
+  if (!engine.capabilities()) {
+    std::cerr << "lattice: Unix endpoint did not negotiate capabilities\n";
+    return 10;
+  }
+  print_capabilities("serve=unix", engine.capabilities().value());
+  return 0;
+}
+
 int fixture_memory_hello() {
   lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
   lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
@@ -308,10 +446,63 @@ int bridge_memory(const BridgePolicy& policy) {
   return 0;
 }
 
+int bridge_unix(const UnixBridgeArgs& args) {
+  auto policy = read_bridge_policy(args.policy);
+  if (!policy) {
+    return print_error(policy.error());
+  }
+  auto left_transport = lattice::UnixTransport::connect_path(args.left);
+  if (!left_transport) {
+    return print_error(left_transport.error(), unix_failure_exit());
+  }
+  auto right_transport = lattice::UnixTransport::connect_path(args.right);
+  if (!right_transport) {
+    return print_error(right_transport.error(), unix_failure_exit());
+  }
+
+  lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
+  lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
+  auto left_negotiated = negotiate_unix_peer(left_transport.value(), left);
+  if (!left_negotiated) {
+    return print_error(left_negotiated.error(), unix_failure_exit());
+  }
+  auto right_negotiated = negotiate_unix_peer(right_transport.value(), right);
+  if (!right_negotiated) {
+    return print_error(right_negotiated.error(), unix_failure_exit());
+  }
+  if (!left.capabilities() || !right.capabilities()) {
+    std::cerr << "lattice: Unix bridge did not negotiate both endpoints\n";
+    return 10;
+  }
+
+  lattice::Gateway gateway;
+  auto route = gateway.create_route(policy.value().source, policy.value().destination,
+                                    policy.value().family_id);
+  if (!route) {
+    return print_error(route.error());
+  }
+  auto bridged = gateway.bridge_message(left.capabilities().value(), right.capabilities().value(),
+                                        policy.value().source, policy.value().payload);
+  if (!bridged) {
+    return print_error(bridged.error());
+  }
+  std::cout << "bridge=unix route=" << bridged.value().route_id
+            << " left=" << args.left
+            << " right=" << args.right
+            << " source=" << bridged.value().source.str()
+            << " destination=" << bridged.value().destination.str()
+            << " family=" << bridged.value().family_id
+            << " bytes=" << bridged.value().payload.size() << '\n';
+  return 0;
+}
+
 void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
+            << "  lattice probe --socket <path>\n"
+            << "  lattice serve --socket <path> --plugin echo\n"
             << "  lattice bridge --memory [--policy <file>]\n"
+            << "  lattice bridge --left <path> --right <path> --policy <file>\n"
             << "  lattice dump <file>\n"
             << "  lattice replay <trace-file>\n"
             << "  lattice fixture --memory-hello\n";
@@ -328,6 +519,13 @@ int main(int argc, char** argv) {
   if (command == "probe" && argc == 3 && std::string(argv[2]) == "--memory") {
     return probe_memory();
   }
+  if (command == "probe" && argc == 4 && std::string(argv[2]) == "--socket") {
+    return probe_unix(argv[3]);
+  }
+  if (command == "serve" && argc == 6 && std::string(argv[2]) == "--socket" &&
+      std::string(argv[4]) == "--plugin") {
+    return serve_unix(argv[3], argv[5]);
+  }
   if (command == "bridge" && argc == 3 && std::string(argv[2]) == "--memory") {
     return bridge_memory(BridgePolicy{});
   }
@@ -340,6 +538,12 @@ int main(int argc, char** argv) {
     }
     return bridge_memory(policy.value());
   }
+  if (command == "bridge") {
+    auto args = parse_unix_bridge_args(argc, argv);
+    if (args.has_value()) {
+      return bridge_unix(args.value());
+    }
+  }
   if (command == "dump" && argc == 3) {
     return dump_file(argv[2]);
   }
@@ -348,10 +552,6 @@ int main(int argc, char** argv) {
   }
   if (command == "fixture" && argc == 3 && std::string(argv[2]) == "--memory-hello") {
     return fixture_memory_hello();
-  }
-  if (command == "serve" || command == "bridge") {
-    std::cerr << "lattice: Unix-socket serve/bridge is not available in this portable build\n";
-    return 6;
   }
   usage();
   return 2;

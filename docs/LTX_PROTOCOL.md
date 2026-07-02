@@ -59,3 +59,12 @@ the portable in-process bridge:
 ```powershell
 .\build\release\lattice.exe bridge --memory --policy fixtures\ltx1\memory_bridge.policy
 ```
+
+On POSIX hosts, socket negotiation uses the same LTX/1 HELLO frames through
+the Unix transport adapter:
+
+```powershell
+.\build\release\lattice.exe serve --socket /tmp/lattice.sock --plugin echo
+.\build\release\lattice.exe probe --socket /tmp/lattice.sock
+.\build\release\lattice.exe bridge --left /tmp/a.sock --right /tmp/b.sock --policy fixtures\ltx1\memory_bridge.policy
+```

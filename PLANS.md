@@ -6,7 +6,7 @@ Selected specification: `02_lattice_multiplexed_protocol_gateway.md`. It matches
 
 Lattice is implemented as a C++20 core library with typed protocol errors, a canonical LTX/1 frame codec, immutable negotiated capabilities, generation-aware channels, bounded flow accounts, fragment reassembly, replay retention, a static plugin registry with a built-in echo family, deterministic memory transport, gateway schema policy, CLI tooling, and smoke fuzz targets.
 
-Mutable connection and channel state is owned by `ConnectionEngine` and processed synchronously in deterministic event order. The current implementation models the single-loop MVP path and leaves multi-threaded loop sharding as a documented full-version gap.
+Mutable connection and channel state is owned by `ConnectionEngine` and processed synchronously in deterministic event order. The current implementation models the single-loop MVP path and leaves threaded runtime execution plus continuous Unix bridge data-plane pumping as documented full-version gaps.
 
 ## Phases
 
@@ -45,11 +45,11 @@ Local note: CMake and a C++ compiler were not available on this machine's PATH d
 - Stale generation mutation: `ChannelTable` validates compound IDs and rejects old generations.
 - Credit leaks: `FlowAccount` exposes conservation tests and checked overflow behavior.
 - Schema mismatch: gateway forwarding requires exact plugin family and schema hash.
-- Async and multi-thread gaps: documented as full-version work, not claimed verified.
+- Async, live bridge pumping, and multi-thread gaps: documented as full-version work, not claimed verified.
 
 ## Definition Of Done
 
-MVP done requires green builds/tests/fuzz smoke on a C++20 toolchain, plus implemented memory negotiation, generated channels, fragmentation, flow checks, echo dispatch, malformed input handling, and docs. Full-version done additionally requires replay RESUME, keepalive timers, Unix sockets, loop sharding, quiescent plugin unload, TSan, long soaks, performance budgets, and compatibility fixtures.
+MVP done requires green builds/tests/fuzz smoke on a C++20 toolchain, plus implemented memory negotiation, generated channels, fragmentation, flow checks, echo dispatch, malformed input handling, and docs. Full-version done additionally requires live bridge pumping, threaded runtime execution, supported TSan, long soaks, performance budgets, and compatibility fixtures.
 
 ## Checklist
 
@@ -64,9 +64,10 @@ MVP done requires green builds/tests/fuzz smoke on a C++20 toolchain, plus imple
 - [x] Gateway schema policy.
 - [x] CLI and fuzz smoke targets.
 - [x] Unit/integration test sources.
-- [ ] Local debug/release build verified.
-- [ ] ASan/UBSan/TSan verified.
-- [ ] Unix-domain transport.
-- [ ] Selective ACK, RESUME, keepalive, retransmission timers.
-- [ ] Concurrent loop sharding and quiescent dynamic plugin unload.
+- [x] Local debug/release build verified.
+- [x] ASan/UBSan verified on this host.
+- [x] Unix-domain transport and socket CLI negotiation.
+- [x] Selective ACK, RESUME, keepalive, retransmission timers.
+- [ ] Threaded runtime execution and continuous Unix bridge data-plane pumping.
+- [ ] TSan on a supported non-MSVC target.
 - [ ] Long-running performance and soak budgets.

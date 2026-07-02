@@ -8,17 +8,18 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, Unix transport, gateway route, executor-backed plugin dispatch, and plugin lease primitives are present.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, Unix transport and socket CLI negotiation, gateway route, executor-backed plugin dispatch, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered source channels and typed translators can cross schema hashes while opaque mismatches are rejected; `ConnectionEngine` can schedule plugin work on `DeterministicExecutor`; frame decode uses cached SSE4.2 CRC32C when available with a slicing-by-8 fallback and now exceeds the MVP decode budget in Release on this environment.
+LAT-017/LAT-018 advanced: the CLI now registers memory command smokes in CTest and exposes Unix socket probe, one-connection serve, and bridge route-validation commands over the POSIX transport/listener adapters while Windows returns stable unsupported transport failures.
 
 ## Next Actionable Ticket
 
 Next source tickets:
 
-- Implement Unix endpoint serve/bridge CLI mode.
+- Implement continuous Unix bridge data-plane channel pumping.
+- Wire durable replay snapshots into CLI/daemon storage lifecycle.
 
 ## Completed Modules
 
@@ -38,13 +39,13 @@ Next source tickets:
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
-- CLI `probe`, memory `bridge`, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- CLI `probe`, memory `bridge`, Unix socket `probe`/one-connection `serve`/bridge route validation, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## In Progress Modules
 
 - Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, and engine pre-start snapshot loading are integrated; CLI/daemon durable storage lifecycle wiring remains incomplete.
-- CLI Unix endpoint pumping remains incomplete; POSIX listener/transport primitives, portable memory bridge, and policy-file parsing are implemented.
+- Continuous CLI Unix bridge data-plane pumping remains incomplete; POSIX listener/transport primitives, Unix negotiation commands, portable memory bridge, and policy-file parsing are implemented.
 
 ## Known Blockers
 
@@ -55,7 +56,7 @@ Next source tickets:
 
 - Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-debug` preset.
 - Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in local Clang/Ninja path.
-- Unit/integration tests: Passed in Debug and Release.
+- Unit/integration and CLI CTest smokes: Passed in Debug and Release.
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Blocked on Windows Clang target support.
@@ -68,7 +69,7 @@ Next source tickets:
 
 - ADR-0001 records a compact MVP implementation with memory transport and deterministic single-loop state.
 - ADR-0002 records static C++ plugin registration instead of dynamic code loading.
-- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; CLI endpoint pumping remains partial-result exit `6` on this Windows environment.
+- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while continuous bridge forwarding remains a documented full-version gap.
 
 ## Last Verified Commit
 

@@ -21,6 +21,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Deterministic trace serialization/parsing and canonical replay summary verification.
 - Published LTX/1 compatibility fixture replay verification.
 - CLI memory bridge route smoke and route-policy fixture parsing.
+- CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.

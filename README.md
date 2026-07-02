@@ -2,7 +2,7 @@
 
 Lattice is a C++20 local gateway core for the LTX/1 multiplexed binary protocol. It negotiates capabilities, opens generation-tagged channels, reassembles fragmented messages, enforces byte-credit windows, dispatches negotiated plugin families, records replay bytes, and forwards gateway traffic only through schema-safe opaque routes or typed translators.
 
-Maturity: hardening implementation. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory bridge CLI, executor-backed plugin dispatch path, stable shard routing, tests, fuzz smoke targets, compatibility fixture, and release decode benchmark are present. Full-version items such as Unix endpoint serving, threaded loop runtime, TSan stress, and long soaks remain in progress.
+Maturity: hardening implementation. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory and Unix negotiation CLI, executor-backed plugin dispatch path, stable shard routing, tests, fuzz smoke targets, compatibility fixture, and release decode benchmark are present. Full-version items such as live Unix bridge data-plane forwarding, threaded loop runtime, TSan stress, and long soaks remain in progress.
 
 ## Build
 
@@ -22,6 +22,14 @@ Expected output shape:
 
 ```text
 LTX/1 max_frame=65536 max_message=1048576 channels=256 plugins=1
+```
+
+On POSIX hosts, the same HELLO negotiation path is available over Unix-domain
+sockets:
+
+```powershell
+.\build\debug\lattice.exe serve --socket /tmp/lattice.sock --plugin echo
+.\build\debug\lattice.exe probe --socket /tmp/lattice.sock
 ```
 
 ## Safety
