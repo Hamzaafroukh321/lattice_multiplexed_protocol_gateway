@@ -29,3 +29,4 @@
 - Added checked-in local Clang/Ninja CMake presets.
 - Added TOML-like route-policy parsing for `lattice bridge --memory --policy`.
 - Added POSIX Unix listener bind/listen/accept primitives with portable Windows errors.
+- Added canonical `LTXREPLAY/1` replay-window snapshot serialization and restore validation.

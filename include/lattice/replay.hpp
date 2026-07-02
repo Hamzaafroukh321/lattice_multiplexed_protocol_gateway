@@ -61,6 +61,8 @@ class ReplayWindow {
   [[nodiscard]] Result<std::vector<ReplayEntry>> retained_from(std::uint16_t epoch,
                                                                std::uint32_t first_required_seq) const;
   [[nodiscard]] Result<void> can_resume(const ResumeProof& proof) const;
+  [[nodiscard]] Result<std::string> serialize_retained() const;
+  [[nodiscard]] static Result<ReplayWindow> restore_retained(const std::string& text);
   [[nodiscard]] bool contains(std::uint32_t frame_seq) const;
   [[nodiscard]] std::optional<std::uint32_t> earliest_sequence() const;
   [[nodiscard]] std::optional<std::uint32_t> latest_sequence() const;

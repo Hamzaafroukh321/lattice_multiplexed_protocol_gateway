@@ -28,7 +28,7 @@ Next source tickets:
 - `ChannelTable`: generated channels, generations, tombstones, send-sequence wrap rejection, remote OPEN acceptance, half-close/reset.
 - `Reassembler`: bounded non-overlapping fragments, retained sparse-fragment budget enforcement, retained-byte cleanup on reset, and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
-- `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, and exact retained suffix lookup for RESUME.
+- `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, exact retained suffix lookup for RESUME, and canonical `LTXREPLAY/1` snapshot serialization/restore.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
 - `OutboundScheduler`: bounded control/data queues with per-channel sequence order and partial-write tail retention.
 - `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
@@ -43,7 +43,7 @@ Next source tickets:
 
 ## In Progress Modules
 
-- Keepalive/retransmission timers and in-process retained RESUME continuation are integrated; durable retained state across process restart remains incomplete.
+- Keepalive/retransmission timers, in-process retained RESUME continuation, and replay snapshot serialization are integrated; process startup loading of durable snapshots remains incomplete.
 - CLI Unix endpoint pumping remains incomplete; POSIX listener/transport primitives, portable memory bridge, and policy-file parsing are implemented.
 
 ## Known Blockers

@@ -3,7 +3,9 @@
 #include "lattice/frame.hpp"
 
 #include <algorithm>
+#include <iomanip>
 #include <limits>
+#include <sstream>
 
 namespace lattice {
 namespace {
@@ -23,6 +25,66 @@ void append_u32(Bytes& out, std::uint32_t value) {
 [[nodiscard]] std::uint16_t read_u16(std::span<const std::uint8_t> bytes, std::size_t offset) {
   return static_cast<std::uint16_t>((static_cast<std::uint16_t>(bytes[offset]) << 8U) |
                                     static_cast<std::uint16_t>(bytes[offset + 1U]));
+}
+
+[[nodiscard]] std::string hex(const Bytes& bytes) {
+  std::ostringstream out;
+  for (std::uint8_t byte : bytes) {
+    out << std::hex << std::setw(2) << std::setfill('0') << static_cast<unsigned>(byte);
+  }
+  return out.str();
+}
+
+[[nodiscard]] Result<Bytes> parse_hex(const std::string& text) {
+  if ((text.size() % 2U) != 0U) {
+    return make_error(ErrorScope::connection, ErrorCode::resource_limit, CloseAction::none,
+                      "replay snapshot hex has odd length");
+  }
+  Bytes out;
+  out.reserve(text.size() / 2U);
+  const auto nibble = [](char ch) -> int {
+    if (ch >= '0' && ch <= '9') {
+      return ch - '0';
+    }
+    if (ch >= 'a' && ch <= 'f') {
+      return 10 + ch - 'a';
+    }
+    if (ch >= 'A' && ch <= 'F') {
+      return 10 + ch - 'A';
+    }
+    return -1;
+  };
+  for (std::size_t i = 0; i < text.size(); i += 2U) {
+    const int high = nibble(text[i]);
+    const int low = nibble(text[i + 1U]);
+    if (high < 0 || low < 0) {
+      return make_error(ErrorScope::connection, ErrorCode::resource_limit, CloseAction::none,
+                        "replay snapshot hex contains non-hex byte");
+    }
+    out.push_back(static_cast<std::uint8_t>((high << 4) | low));
+  }
+  return out;
+}
+
+[[nodiscard]] Result<std::uint64_t> parse_u64(const std::string& text) {
+  if (text.empty()) {
+    return make_error(ErrorScope::connection, ErrorCode::resource_limit, CloseAction::none,
+                      "replay snapshot integer is empty");
+  }
+  std::uint64_t value = 0;
+  for (char ch : text) {
+    if (ch < '0' || ch > '9') {
+      return make_error(ErrorScope::connection, ErrorCode::resource_limit, CloseAction::none,
+                        "replay snapshot integer is not decimal");
+    }
+    const std::uint64_t digit = static_cast<std::uint64_t>(ch - '0');
+    if (value > (std::numeric_limits<std::uint64_t>::max() - digit) / 10U) {
+      return make_error(ErrorScope::connection, ErrorCode::resource_limit, CloseAction::none,
+                        "replay snapshot integer overflows");
+    }
+    value = value * 10U + digit;
+  }
+  return value;
 }
 
 }  // namespace
@@ -134,6 +196,83 @@ Result<void> ReplayWindow::can_resume(const ResumeProof& proof) const {
                       CloseAction::close_connection, "resume range is outside retained replay window");
   }
   return {};
+}
+
+Result<std::string> ReplayWindow::serialize_retained() const {
+  std::ostringstream out;
+  out << "LTXREPLAY/1\n";
+  out << "capacity|" << capacity_ << '\n';
+  out << "epoch|" << epoch_ << '\n';
+  for (const ReplayEntry& entry : entries_) {
+    out << "entry|" << entry.frame_seq << '|' << static_cast<unsigned>(entry.retries)
+        << '|' << hex(entry.encoded) << '\n';
+  }
+  return out.str();
+}
+
+Result<ReplayWindow> ReplayWindow::restore_retained(const std::string& text) {
+  std::istringstream in(text);
+  std::string line;
+  if (!std::getline(in, line) || line != "LTXREPLAY/1") {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "replay snapshot header mismatch");
+  }
+  if (!std::getline(in, line) || line.rfind("capacity|", 0U) != 0U) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "replay snapshot missing capacity");
+  }
+  auto capacity = parse_u64(line.substr(9U));
+  if (!capacity || capacity.value() == 0U ||
+      capacity.value() > std::numeric_limits<std::size_t>::max()) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "replay snapshot capacity is invalid");
+  }
+  if (!std::getline(in, line) || line.rfind("epoch|", 0U) != 0U) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "replay snapshot missing epoch");
+  }
+  auto epoch = parse_u64(line.substr(6U));
+  if (!epoch || epoch.value() == 0U || epoch.value() > 0xFFFFU) {
+    return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                      CloseAction::close_connection, "replay snapshot epoch is invalid");
+  }
+  ReplayWindow restored(static_cast<std::size_t>(capacity.value()));
+  restored.epoch_ = static_cast<std::uint16_t>(epoch.value());
+  std::optional<std::uint32_t> previous_seq;
+  while (std::getline(in, line)) {
+    if (line.empty()) {
+      continue;
+    }
+    const std::size_t first = line.find('|');
+    const std::size_t second = first == std::string::npos ? std::string::npos : line.find('|', first + 1U);
+    const std::size_t third = second == std::string::npos ? std::string::npos : line.find('|', second + 1U);
+    if (first == std::string::npos || second == std::string::npos || third == std::string::npos ||
+        line.substr(0U, first) != "entry") {
+      return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                        CloseAction::close_connection, "malformed replay snapshot entry");
+    }
+    auto seq = parse_u64(line.substr(first + 1U, second - first - 1U));
+    auto retries = parse_u64(line.substr(second + 1U, third - second - 1U));
+    auto encoded = parse_hex(line.substr(third + 1U));
+    if (!seq || !retries || !encoded || seq.value() > 0xFFFFFFFFULL || retries.value() > 0xFFU ||
+        encoded.value().empty()) {
+      return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                        CloseAction::close_connection, "replay snapshot entry is invalid");
+    }
+    const std::uint32_t frame_seq = static_cast<std::uint32_t>(seq.value());
+    if (previous_seq.has_value() && previous_seq.value() >= frame_seq) {
+      return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                        CloseAction::close_connection, "replay snapshot entries are not ordered");
+    }
+    if (restored.entries_.size() >= restored.capacity_) {
+      return make_error(ErrorScope::connection, ErrorCode::resume_rejected,
+                        CloseAction::close_connection, "replay snapshot exceeds capacity");
+    }
+    previous_seq = frame_seq;
+    restored.entries_.push_back(ReplayEntry{restored.epoch_, frame_seq, encoded.take_value(),
+                                            static_cast<std::uint8_t>(retries.value())});
+  }
+  return restored;
 }
 
 bool ReplayWindow::contains(std::uint32_t frame_seq) const {

@@ -67,6 +67,36 @@ static void RetainedFromReturnsExactSuffix() {
   CHECK(retained.value()[1].encoded == Bytes({'c'}));
 }
 
+static void ReplaySnapshotRoundTripsRetainedBytes() {
+  ReplayWindow replay(4U);
+  REQUIRE_OK(replay.record(1U, 10U, Bytes{'a'}));
+  REQUIRE_OK(replay.record(1U, 11U, Bytes{'b', 'c'}));
+  auto snapshot = replay.serialize_retained();
+  REQUIRE_OK(snapshot);
+  auto restored = ReplayWindow::restore_retained(snapshot.value());
+  REQUIRE_OK(restored);
+  auto retained = restored.value().retained_from(1U, 10U);
+  REQUIRE_OK(retained);
+  CHECK(retained.value().size() == 2U);
+  CHECK(retained.value()[0].encoded == Bytes({'a'}));
+  CHECK(retained.value()[1].encoded == Bytes({'b', 'c'}));
+  auto serialized_again = restored.value().serialize_retained();
+  REQUIRE_OK(serialized_again);
+  CHECK(serialized_again.value() == snapshot.value());
+}
+
+static void ReplaySnapshotRejectsCorruptState() {
+  auto malformed = ReplayWindow::restore_retained(
+      "LTXREPLAY/1\ncapacity|2\nepoch|1\nentry|10|0|zz\n");
+  CHECK(!malformed);
+  CHECK(malformed.error().code == ErrorCode::resume_rejected);
+
+  auto unordered = ReplayWindow::restore_retained(
+      "LTXREPLAY/1\ncapacity|2\nepoch|1\nentry|11|0|aa\nentry|10|0|bb\n");
+  CHECK(!unordered);
+  CHECK(unordered.error().code == ErrorCode::resume_rejected);
+}
+
 static void StaleTimerIgnoredAfterCancel() {
   TimerWheel wheel;
   auto first = wheel.schedule(TimerKind::retry, ChannelId{5U, 1U}, 20U);
@@ -84,5 +114,7 @@ void register_replay_tests() {
   add_test("AckPayloadRoundTripRejectsOverlap", &AckPayloadRoundTripRejectsOverlap);
   add_test("ResumeWindowTooOldRejects", &ResumeWindowTooOldRejects);
   add_test("RetainedFromReturnsExactSuffix", &RetainedFromReturnsExactSuffix);
+  add_test("ReplaySnapshotRoundTripsRetainedBytes", &ReplaySnapshotRoundTripsRetainedBytes);
+  add_test("ReplaySnapshotRejectsCorruptState", &ReplaySnapshotRejectsCorruptState);
   add_test("StaleTimerIgnoredAfterCancel", &StaleTimerIgnoredAfterCancel);
 }

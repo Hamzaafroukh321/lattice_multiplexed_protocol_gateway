@@ -13,6 +13,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Half-close direction independence.
 - Credit conservation and overflow.
 - Replay ACK retirement and identical retry bytes.
+- Replay retained-state snapshot round trip and corrupt-state rejection.
 - ACK payload canonicalization, resume-window rejection, retained resume suffix replay, and generation-tagged timer cancellation.
 - Bounded outbound scheduling, control priority, and per-channel data ordering.
 - Partial write retention for data and control queues.
