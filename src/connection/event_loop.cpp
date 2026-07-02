@@ -82,8 +82,8 @@ struct ThreadedExecutor::Impl {
     std::thread worker;
   };
 
-  explicit Impl(std::size_t capacity, std::uint32_t shards)
-      : capacity(capacity), shard_count(shards == 0U ? 1U : shards), queues(shard_count) {}
+  explicit Impl(std::size_t max_tasks, std::uint32_t shards)
+      : capacity(max_tasks), shard_count(shards == 0U ? 1U : shards), queues(shard_count) {}
 
   std::size_t capacity{0};
   std::uint32_t shard_count{1};

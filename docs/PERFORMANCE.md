@@ -34,4 +34,4 @@ Budgets from the specification remain the target:
 - MVP frame/message size: 64 KiB / 1 MiB.
 - MVP fuzz speed: more than 50k frame exec/s and more than 5k event exec/s.
 
-Additional latency, memory, and fuzz-speed measurements still need dedicated commands before full acceptance can be called complete.
+Additional latency, memory, and fuzz-speed measurements still need dedicated commands before full acceptance can be called complete. A 5000-iteration memory probe soak passed on the Windows debug build.

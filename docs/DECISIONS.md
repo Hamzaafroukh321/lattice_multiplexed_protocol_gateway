@@ -32,6 +32,6 @@ Decision: Implement deterministic memory transport and POSIX Unix-domain transpo
 
 Alternatives considered: Windows named pipes or a stub that reports success. Reporting success would be misleading; named pipes are outside the spec's main platform.
 
-Consequences: Protocol correctness can be tested without OS socket timing, and POSIX hosts can exercise `UnixTransport::pair_for_test`, `connect_path`, `UnixListener::bind_path`/`accept_one`, and the socket CLI loop. Windows verification covers portable unsupported behavior; POSIX live-loop runtime smoke remains environment-dependent.
+Consequences: Protocol correctness can be tested without OS socket timing, and POSIX hosts can exercise `UnixTransport::pair_for_test`, `connect_path`, `UnixListener::bind_path`/`accept_one`, and the socket CLI loop. Windows verification covers portable unsupported behavior, and Ubuntu Docker verification covers the POSIX socket bridge pump.
 
-Validation: `TwoMemoryTransportsCompleteHello` covers the memory path. `UnixTransportPairRoundTripOrPortableError` and `UnixListenerBindOrPortableError` cover POSIX primitives or Windows unsupported behavior. CTest covers memory CLI commands and Windows unsupported Unix CLI commands.
+Validation: `TwoMemoryTransportsCompleteHello` covers the memory path. `UnixTransportPairRoundTripOrPortableError`, `UnixListenerBindOrPortableError`, and `UnixSocketBridgePumpForwardsPayloadOrPortableError` cover POSIX primitives/bridge pumping or Windows unsupported behavior. CTest covers memory CLI commands and Windows unsupported Unix CLI commands.

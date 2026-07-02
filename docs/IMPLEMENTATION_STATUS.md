@@ -18,7 +18,6 @@ LAT-018 advanced: a bounded `ThreadedExecutor` now runs per-shard worker queues 
 
 Next source tickets:
 
-- Run POSIX live socket bridge smoke on a Linux host.
 - Run supported TSan and longer soak/performance suites.
 
 ## Completed Modules
@@ -46,23 +45,24 @@ Next source tickets:
 ## In Progress Modules
 
 - Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, engine pre-start snapshot loading, and CLI memory snapshot storage are integrated.
-- POSIX live socket bridge runtime smoke is not locally executable on this Windows host; the loop compiles and Windows unsupported behavior is covered.
+- POSIX Unix socket bridge pump is covered by Linux Docker runtime tests using `UnixTransport::pair_for_test`, production `ConnectionEngine` instances, and gateway forwarding.
 
 ## Known Blockers
 
 - TSan is unsupported by the available Windows Clang target: `clang++: error: unsupported option '-fsanitize=thread' for target 'x86_64-pc-windows-msvc'`.
+- Linux Docker TSan builds with GCC 13.3, but every TSan executable exits before tests with `FATAL: ThreadSanitizer: unexpected memory mapping`, so TSan runtime verification still needs a compatible host/runtime.
 - LLVM installation through `winget install LLVM.LLVM` was cancelled by user/UAC, but usable LLVM binaries were already present under `C:\Program Files\LLVM`.
 
 ## Build And Test Status
 
 - Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-debug` preset.
 - Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-release` preset and the generic `release` tree.
-- Unit/integration and CLI CTest smokes: Passed in Debug, Release, ASan/UBSan Release, and local Clang Release.
+- Unit/integration and CLI CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug.
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
-- TSan: Blocked on Windows Clang target support.
+- TSan: Blocked on Windows Clang target support and Docker/Linux TSan runtime memory mapping failure.
 - Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1189.73, 1186.52, 1278.26, and 1306.83 MiB/s in current samples; this meets the MVP frame decode target with the pinned local Clang preset. The generic `build/release` tree sampled lower on this host after full rebuild.
-- Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 500` passed memory probe repetitions.
+- Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` passed memory probe repetitions.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" --glob "!docs/IMPLEMENTATION_STATUS.md" .` returned no matches.
 
@@ -70,7 +70,7 @@ Next source tickets:
 
 - ADR-0001 records a compact MVP implementation with memory transport and deterministic single-loop state.
 - ADR-0002 records static C++ plugin registration instead of dynamic code loading.
-- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while POSIX live-loop runtime smoke remains unverified locally.
+- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while Linux Docker covers the POSIX socket bridge pump.
 
 ## Last Verified Commit
 

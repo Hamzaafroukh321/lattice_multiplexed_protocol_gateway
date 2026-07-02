@@ -6,7 +6,7 @@ Selected specification: `02_lattice_multiplexed_protocol_gateway.md`. It matches
 
 Lattice is implemented as a C++20 core library with typed protocol errors, a canonical LTX/1 frame codec, immutable negotiated capabilities, generation-aware channels, bounded flow accounts, fragment reassembly, replay retention, a static plugin registry with a built-in echo family, deterministic memory transport, gateway schema policy, CLI tooling, and smoke fuzz targets.
 
-Mutable connection and channel state is owned by `ConnectionEngine` and processed in actor-confined event order. The current implementation has deterministic test execution and a bounded threaded shard executor; POSIX live-loop verification remains environment-bound on this Windows host.
+Mutable connection and channel state is owned by `ConnectionEngine` and processed in actor-confined event order. The current implementation has deterministic test execution, a bounded threaded shard executor, and Linux Docker coverage for the POSIX socket bridge pump.
 
 ## Phases
 
@@ -45,7 +45,7 @@ Local note: CMake and a C++ compiler were not available on this machine's PATH d
 - Stale generation mutation: `ChannelTable` validates compound IDs and rejects old generations.
 - Credit leaks: `FlowAccount` exposes conservation tests and checked overflow behavior.
 - Schema mismatch: gateway forwarding requires exact plugin family and schema hash.
-- POSIX live-loop and TSan gaps: documented as full-version verification work, not claimed verified on this Windows host.
+- TSan remains blocked by the available Windows target and Docker/Linux TSan runtime behavior.
 
 ## Definition Of Done
 
@@ -69,6 +69,6 @@ MVP done requires green builds/tests/fuzz smoke on a C++20 toolchain, plus imple
 - [x] Unix-domain transport and socket CLI negotiation.
 - [x] Selective ACK, RESUME, keepalive, retransmission timers.
 - [x] Threaded runtime execution primitive.
-- [ ] POSIX live-loop verification.
+- [x] POSIX socket bridge pump verification under Linux Docker.
 - [ ] TSan on a supported non-MSVC target.
-- [ ] Long-running performance and soak budgets.
+- [x] 5000-iteration memory probe soak and pinned local Clang frame benchmark.

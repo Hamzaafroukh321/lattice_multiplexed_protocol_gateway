@@ -36,3 +36,4 @@
 - Added durable replay snapshot store and CLI memory snapshot load/save smoke.
 - Added POSIX Unix bridge event loop over negotiated endpoints.
 - Added bounded threaded executor shard runtime.
+- Added Linux POSIX socket bridge pump smoke coverage and extended memory probe soak evidence.

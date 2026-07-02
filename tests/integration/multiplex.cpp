@@ -17,6 +17,21 @@ void handshake(ConnectionEngine& left, ConnectionEngine& right) {
   CHECK(right.state() == ConnectionState::active);
 }
 
+#ifndef _WIN32
+void write_chunks(UnixTransport& transport, const std::vector<Bytes>& chunks) {
+  for (const Bytes& chunk : chunks) {
+    REQUIRE_OK(transport.write(chunk));
+  }
+}
+
+Bytes read_required(UnixTransport& transport) {
+  auto bytes = transport.read_some(kDefaultMaxFrame);
+  REQUIRE_OK(bytes);
+  CHECK(!bytes.value().empty());
+  return bytes.take_value();
+}
+#endif
+
 }  // namespace
 
 static void TwoMemoryTransportsCompleteHello() {
@@ -257,6 +272,92 @@ static void GatewayPumpsDeliveredMessageToDestinationConnection() {
   CHECK(server_received);
 }
 
+static void UnixSocketBridgePumpForwardsPayloadOrPortableError() {
+#ifdef _WIN32
+  auto pair = UnixTransport::pair_for_test();
+  CHECK(!pair);
+  CHECK(pair.error().scope == ErrorScope::transport);
+#else
+  auto left_pair_result = UnixTransport::pair_for_test();
+  auto right_pair_result = UnixTransport::pair_for_test();
+  REQUIRE_OK(left_pair_result);
+  REQUIRE_OK(right_pair_result);
+  auto left_pair = left_pair_result.take_value();
+  auto right_pair = right_pair_result.take_value();
+  UnixTransport& left_peer_transport = left_pair.first;
+  UnixTransport& left_bridge_transport = left_pair.second;
+  UnixTransport& right_bridge_transport = right_pair.first;
+  UnixTransport& right_peer_transport = right_pair.second;
+
+  ConnectionEngine left_peer(LocalPolicy{}, make_registry());
+  ConnectionEngine bridge_left(LocalPolicy{}, make_registry());
+  ConnectionEngine bridge_right(LocalPolicy{}, make_registry());
+  ConnectionEngine right_peer(LocalPolicy{}, make_registry());
+
+  auto left_peer_hello = left_peer.start();
+  auto bridge_left_hello = bridge_left.start();
+  REQUIRE_OK(left_peer_hello);
+  REQUIRE_OK(bridge_left_hello);
+  write_chunks(left_peer_transport, left_peer_hello.value());
+  write_chunks(left_bridge_transport, bridge_left_hello.value());
+  REQUIRE_OK(bridge_left.receive(read_required(left_bridge_transport), false));
+  REQUIRE_OK(left_peer.receive(read_required(left_peer_transport), false));
+
+  auto bridge_right_hello = bridge_right.start();
+  auto right_peer_hello = right_peer.start();
+  REQUIRE_OK(bridge_right_hello);
+  REQUIRE_OK(right_peer_hello);
+  write_chunks(right_bridge_transport, bridge_right_hello.value());
+  write_chunks(right_peer_transport, right_peer_hello.value());
+  REQUIRE_OK(right_peer.receive(read_required(right_peer_transport), false));
+  REQUIRE_OK(bridge_right.receive(read_required(right_bridge_transport), false));
+
+  auto source = left_peer.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(source);
+  write_chunks(left_peer_transport, source.value().second);
+  REQUIRE_OK(bridge_left.receive(read_required(left_bridge_transport), false));
+
+  auto destination = bridge_right.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(destination);
+  write_chunks(right_bridge_transport, destination.value().second);
+  REQUIRE_OK(right_peer.receive(read_required(right_peer_transport), false));
+
+  Gateway gateway;
+  REQUIRE_OK(gateway.create_route(source.value().first, destination.value().first, 7U));
+
+  const Bytes payload{'p', 'o', 's', 'i', 'x'};
+  auto sent = left_peer.send(source.value().first, payload);
+  REQUIRE_OK(sent);
+  write_chunks(left_peer_transport, sent.value());
+  REQUIRE_OK(bridge_left.receive(read_required(left_bridge_transport), false));
+
+  std::optional<Bytes> delivered;
+  for (const auto& event : bridge_left.events()) {
+    if (event.kind == ConnectionEvent::Kind::message_delivered &&
+        event.channel == source.value().first) {
+      delivered = event.payload;
+    }
+  }
+  CHECK(delivered.has_value());
+
+  auto forwarded = gateway.bridge_to_connection(bridge_left.capabilities().value(),
+                                                bridge_right.capabilities().value(),
+                                                bridge_right, source.value().first,
+                                                delivered.value());
+  REQUIRE_OK(forwarded);
+  write_chunks(right_bridge_transport, forwarded.value());
+  REQUIRE_OK(right_peer.receive(read_required(right_peer_transport), false));
+
+  bool received = false;
+  for (const auto& event : right_peer.events()) {
+    received = received || (event.kind == ConnectionEvent::Kind::message_delivered &&
+                            event.channel == destination.value().first &&
+                            event.payload == payload);
+  }
+  CHECK(received);
+#endif
+}
+
 static void AsyncResultAfterResetDropped() {
   ConnectionEngine left(LocalPolicy{}, make_registry());
   ConnectionEngine right(LocalPolicy{}, make_registry());
@@ -328,6 +429,8 @@ void register_multiplex_tests() {
   add_test("EngineStartsAfterReplaySnapshotLoad", &EngineStartsAfterReplaySnapshotLoad);
   add_test("GatewayPumpsDeliveredMessageToDestinationConnection",
            &GatewayPumpsDeliveredMessageToDestinationConnection);
+  add_test("UnixSocketBridgePumpForwardsPayloadOrPortableError",
+           &UnixSocketBridgePumpForwardsPayloadOrPortableError);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
   add_test("PluginDispatchCanRunOnDeterministicExecutor",
            &PluginDispatchCanRunOnDeterministicExecutor);

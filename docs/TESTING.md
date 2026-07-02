@@ -22,12 +22,13 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Published LTX/1 compatibility fixture replay verification.
 - CLI memory bridge route smoke and route-policy fixture parsing.
 - CLI memory replay snapshot load/save smoke.
-- CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows; POSIX bridge loop requires a Linux runtime smoke.
+- CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows and POSIX socket bridge pump coverage under Linux Docker.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.
 - Gateway registered-route bridging, connection data-plane pumping, and typed asymmetric schema translation.
 - Unix transport/listener primitives on POSIX or stable unsupported transport errors on Windows.
+- `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` memory probe soak.
 - Executor-backed plugin dispatch and deferred completion.
 - Bounded executor admission, deterministic drain order, and cancellation.
 - Bounded threaded executor shard ordering, task error reporting, and shutdown rejection.
