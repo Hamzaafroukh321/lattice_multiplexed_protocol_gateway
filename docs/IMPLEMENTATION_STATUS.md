@@ -18,7 +18,7 @@ LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered s
 
 Next source tickets:
 
-- Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
+- Implement Unix endpoint serve/bridge CLI mode.
 
 ## Completed Modules
 
@@ -38,13 +38,13 @@ Next source tickets:
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`: POSIX connect/socketpair/read/write adapter with stable transport errors on Windows.
-- CLI `probe`, memory `bridge`, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
-- Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes.
+- CLI `probe`, memory `bridge`, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## In Progress Modules
 
 - Keepalive/retransmission timers and in-process retained RESUME continuation are integrated; durable retained state across process restart remains incomplete.
-- CLI Unix endpoint serving and policy-file bridge mode remain incomplete; portable memory bridge is implemented.
+- CLI Unix endpoint serving remains incomplete; portable memory bridge and policy-file parsing are implemented.
 
 ## Known Blockers
 

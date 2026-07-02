@@ -1,0 +1,5 @@
+[route]
+source = "1:1"
+destination = "2:1"
+family = 7
+payload_hex = "6f6b21"

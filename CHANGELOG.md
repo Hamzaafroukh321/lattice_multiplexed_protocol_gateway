@@ -27,3 +27,4 @@
 - Added `lattice bridge --memory` as a portable gateway route smoke command.
 - Added sustained backpressure byte-stream preservation coverage.
 - Added checked-in local Clang/Ninja CMake presets.
+- Added TOML-like route-policy parsing for `lattice bridge --memory --policy`.

@@ -52,3 +52,10 @@ Validate fixture canonicality with:
 ```powershell
 .\build\release\lattice.exe replay fixtures\ltx1\memory_hello.trace
 ```
+
+`fixtures/ltx1/memory_bridge.policy` is a minimal route-policy fixture for
+the portable in-process bridge:
+
+```powershell
+.\build\release\lattice.exe bridge --memory --policy fixtures\ltx1\memory_bridge.policy
+```

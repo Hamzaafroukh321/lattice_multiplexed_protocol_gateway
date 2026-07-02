@@ -13,3 +13,9 @@ Validate it with:
 ```powershell
 .\build\release\lattice.exe replay fixtures\ltx1\memory_hello.trace
 ```
+
+Run the portable memory bridge policy fixture with:
+
+```powershell
+.\build\release\lattice.exe bridge --memory --policy fixtures\ltx1\memory_bridge.policy
+```

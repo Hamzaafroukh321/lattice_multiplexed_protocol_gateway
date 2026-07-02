@@ -2,6 +2,8 @@
 #include "lattice/gateway.hpp"
 #include "lattice/trace.hpp"
 
+#include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <iterator>
@@ -20,6 +22,158 @@ lattice::PluginRegistry registry() {
     throw std::runtime_error(result.error().detail);
   }
   return out;
+}
+
+struct BridgePolicy {
+  lattice::ChannelId source{1U, 1U};
+  lattice::ChannelId destination{2U, 1U};
+  std::uint32_t family_id{7U};
+  lattice::Bytes payload{'o', 'k'};
+};
+
+std::string trim(std::string text) {
+  const auto not_space = [](unsigned char ch) { return std::isspace(ch) == 0; };
+  text.erase(text.begin(), std::find_if(text.begin(), text.end(), not_space));
+  text.erase(std::find_if(text.rbegin(), text.rend(), not_space).base(), text.end());
+  return text;
+}
+
+std::string unquote(std::string text) {
+  text = trim(std::move(text));
+  if (text.size() >= 2U && text.front() == '"' && text.back() == '"') {
+    return text.substr(1U, text.size() - 2U);
+  }
+  return text;
+}
+
+lattice::Result<std::uint32_t> parse_decimal_u32(const std::string& text) {
+  if (text.empty()) {
+    return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                               lattice::CloseAction::none, "policy integer is empty");
+  }
+  std::uint64_t value = 0;
+  for (char ch : text) {
+    if (ch < '0' || ch > '9') {
+      return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                                 lattice::CloseAction::none, "policy integer is not decimal");
+    }
+    value = value * 10U + static_cast<std::uint64_t>(ch - '0');
+    if (value > 0xFFFFFFFFULL) {
+      return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                                 lattice::CloseAction::none, "policy integer overflows u32");
+    }
+  }
+  return static_cast<std::uint32_t>(value);
+}
+
+lattice::Result<lattice::ChannelId> parse_channel_id(std::string text) {
+  text = unquote(std::move(text));
+  const std::size_t colon = text.find(':');
+  if (colon == std::string::npos) {
+    return lattice::make_error(lattice::ErrorScope::channel, lattice::ErrorCode::resource_limit,
+                               lattice::CloseAction::none, "policy channel must use number:generation");
+  }
+  auto number = parse_decimal_u32(text.substr(0U, colon));
+  if (!number) {
+    return number.error();
+  }
+  auto generation = parse_decimal_u32(text.substr(colon + 1U));
+  if (!generation) {
+    return generation.error();
+  }
+  if (generation.value() > 0xFFU) {
+    return lattice::make_error(lattice::ErrorScope::channel, lattice::ErrorCode::resource_limit,
+                               lattice::CloseAction::none, "policy channel generation exceeds u8");
+  }
+  return lattice::ChannelId{number.value(), static_cast<std::uint8_t>(generation.value())};
+}
+
+lattice::Result<lattice::Bytes> parse_hex_bytes(std::string text) {
+  text = unquote(std::move(text));
+  if ((text.size() % 2U) != 0U) {
+    return lattice::make_error(lattice::ErrorScope::message, lattice::ErrorCode::resource_limit,
+                               lattice::CloseAction::none, "policy payload hex has odd length");
+  }
+  lattice::Bytes out;
+  out.reserve(text.size() / 2U);
+  const auto nibble = [](char ch) -> int {
+    if (ch >= '0' && ch <= '9') {
+      return ch - '0';
+    }
+    if (ch >= 'a' && ch <= 'f') {
+      return 10 + ch - 'a';
+    }
+    if (ch >= 'A' && ch <= 'F') {
+      return 10 + ch - 'A';
+    }
+    return -1;
+  };
+  for (std::size_t i = 0; i < text.size(); i += 2U) {
+    const int high = nibble(text[i]);
+    const int low = nibble(text[i + 1U]);
+    if (high < 0 || low < 0) {
+      return lattice::make_error(lattice::ErrorScope::message, lattice::ErrorCode::resource_limit,
+                                 lattice::CloseAction::none, "policy payload contains non-hex byte");
+    }
+    out.push_back(static_cast<std::uint8_t>((high << 4) | low));
+  }
+  return out;
+}
+
+lattice::Result<BridgePolicy> read_bridge_policy(const std::string& path) {
+  std::ifstream in(path);
+  if (!in) {
+    return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                               lattice::CloseAction::none, "cannot open bridge policy file");
+  }
+  BridgePolicy policy;
+  std::string line;
+  while (std::getline(in, line)) {
+    const std::size_t comment = line.find('#');
+    if (comment != std::string::npos) {
+      line = line.substr(0U, comment);
+    }
+    line = trim(std::move(line));
+    if (line.empty() || line == "[route]") {
+      continue;
+    }
+    const std::size_t equals = line.find('=');
+    if (equals == std::string::npos) {
+      return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                                 lattice::CloseAction::none, "malformed bridge policy line");
+    }
+    const std::string key = trim(line.substr(0U, equals));
+    const std::string value = trim(line.substr(equals + 1U));
+    if (key == "source") {
+      auto parsed = parse_channel_id(value);
+      if (!parsed) {
+        return parsed.error();
+      }
+      policy.source = parsed.value();
+    } else if (key == "destination") {
+      auto parsed = parse_channel_id(value);
+      if (!parsed) {
+        return parsed.error();
+      }
+      policy.destination = parsed.value();
+    } else if (key == "family") {
+      auto parsed = parse_decimal_u32(unquote(value));
+      if (!parsed) {
+        return parsed.error();
+      }
+      policy.family_id = parsed.value();
+    } else if (key == "payload_hex") {
+      auto parsed = parse_hex_bytes(value);
+      if (!parsed) {
+        return parsed.error();
+      }
+      policy.payload = parsed.value();
+    } else {
+      return lattice::make_error(lattice::ErrorScope::connection, lattice::ErrorCode::resource_limit,
+                                 lattice::CloseAction::none, "unknown bridge policy key");
+    }
+  }
+  return policy;
 }
 
 int dump_file(const std::string& path) {
@@ -119,7 +273,7 @@ int fixture_memory_hello() {
   return 0;
 }
 
-int bridge_memory() {
+int bridge_memory(const BridgePolicy& policy) {
   lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
   lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
   auto left_hello = left.start();
@@ -135,14 +289,13 @@ int bridge_memory() {
     return 3;
   }
   lattice::Gateway gateway;
-  auto route = gateway.create_route(lattice::ChannelId{1U, 1U},
-                                    lattice::ChannelId{2U, 1U}, 7U);
+  auto route = gateway.create_route(policy.source, policy.destination, policy.family_id);
   if (!route) {
     std::cerr << route.error().stable_code() << ": " << route.error().detail << '\n';
     return 3;
   }
   auto bridged = gateway.bridge_message(left.capabilities().value(), right.capabilities().value(),
-                                        lattice::ChannelId{1U, 1U}, lattice::Bytes{'o', 'k'});
+                                        policy.source, policy.payload);
   if (!bridged) {
     std::cerr << bridged.error().stable_code() << ": " << bridged.error().detail << '\n';
     return 3;
@@ -158,7 +311,7 @@ int bridge_memory() {
 void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
-            << "  lattice bridge --memory\n"
+            << "  lattice bridge --memory [--policy <file>]\n"
             << "  lattice dump <file>\n"
             << "  lattice replay <trace-file>\n"
             << "  lattice fixture --memory-hello\n";
@@ -176,7 +329,16 @@ int main(int argc, char** argv) {
     return probe_memory();
   }
   if (command == "bridge" && argc == 3 && std::string(argv[2]) == "--memory") {
-    return bridge_memory();
+    return bridge_memory(BridgePolicy{});
+  }
+  if (command == "bridge" && argc == 5 && std::string(argv[2]) == "--memory" &&
+      std::string(argv[3]) == "--policy") {
+    auto policy = read_bridge_policy(argv[4]);
+    if (!policy) {
+      std::cerr << policy.error().stable_code() << ": " << policy.error().detail << '\n';
+      return 3;
+    }
+    return bridge_memory(policy.value());
   }
   if (command == "dump" && argc == 3) {
     return dump_file(argv[2]);
