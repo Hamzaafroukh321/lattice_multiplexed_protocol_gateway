@@ -113,6 +113,16 @@ Result<GatewayForwardedMessage> Gateway::bridge_message(
   return message;
 }
 
+Result<std::vector<Bytes>> Gateway::bridge_to_connection(
+    const CapabilitySet& from, const CapabilitySet& to, ConnectionEngine& destination,
+    ChannelId source, std::span<const std::uint8_t> payload) const {
+  auto message = bridge_message(from, to, source, payload);
+  if (!message) {
+    return message.error();
+  }
+  return destination.send(message.value().destination, message.value().payload);
+}
+
 Result<Bytes> Gateway::translate(const CapabilitySet& from, const CapabilitySet& to,
                                  std::uint32_t family_id,
                                  std::span<const std::uint8_t> payload) const {

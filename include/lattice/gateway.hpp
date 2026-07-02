@@ -51,6 +51,9 @@ class Gateway {
   [[nodiscard]] Result<GatewayForwardedMessage> bridge_message(
       const CapabilitySet& from, const CapabilitySet& to, ChannelId source,
       std::span<const std::uint8_t> payload) const;
+  [[nodiscard]] Result<std::vector<Bytes>> bridge_to_connection(
+      const CapabilitySet& from, const CapabilitySet& to, ConnectionEngine& destination,
+      ChannelId source, std::span<const std::uint8_t> payload) const;
   [[nodiscard]] Result<Bytes> translate(const CapabilitySet& from, const CapabilitySet& to,
                                         std::uint32_t family_id,
                                         std::span<const std::uint8_t> payload) const;

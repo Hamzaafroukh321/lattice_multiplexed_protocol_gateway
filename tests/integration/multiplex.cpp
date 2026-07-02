@@ -1,5 +1,7 @@
 ﻿#include "test_support.hpp"
 
+#include "lattice/gateway.hpp"
+
 using namespace lattice;
 
 namespace {
@@ -188,6 +190,59 @@ static void EngineRejectsReplaySnapshotAfterStart() {
   CHECK(rejected.error().code == ErrorCode::illegal_state);
 }
 
+static void GatewayPumpsDeliveredMessageToDestinationConnection() {
+  ConnectionEngine client(LocalPolicy{}, make_registry());
+  ConnectionEngine ingress(LocalPolicy{}, make_registry());
+  ConnectionEngine egress(LocalPolicy{}, make_registry());
+  ConnectionEngine server(LocalPolicy{}, make_registry());
+  handshake(client, ingress);
+  handshake(egress, server);
+
+  auto destination = egress.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(destination);
+  REQUIRE_OK(server.receive(destination.value().second[0], false));
+
+  auto source = client.open_channel(OpenRequest{7U, 1024U});
+  REQUIRE_OK(source);
+  REQUIRE_OK(ingress.receive(source.value().second[0], false));
+
+  Gateway gateway;
+  REQUIRE_OK(gateway.create_route(source.value().first, destination.value().first, 7U));
+
+  const Bytes payload{'h', 'i'};
+  auto sent = client.send(source.value().first, payload);
+  REQUIRE_OK(sent);
+  for (const Bytes& frame : sent.value()) {
+    REQUIRE_OK(ingress.receive(frame, false));
+  }
+
+  std::optional<Bytes> delivered;
+  for (const auto& event : ingress.events()) {
+    if (event.kind == ConnectionEvent::Kind::message_delivered &&
+        event.channel == source.value().first) {
+      delivered = event.payload;
+    }
+  }
+  CHECK(delivered.has_value());
+
+  auto forwarded = gateway.bridge_to_connection(ingress.capabilities().value(),
+                                                egress.capabilities().value(), egress,
+                                                source.value().first, delivered.value());
+  REQUIRE_OK(forwarded);
+  for (const Bytes& frame : forwarded.value()) {
+    REQUIRE_OK(server.receive(frame, false));
+  }
+
+  bool server_received = false;
+  for (const auto& event : server.events()) {
+    server_received = server_received ||
+                      (event.kind == ConnectionEvent::Kind::message_delivered &&
+                       event.channel == destination.value().first &&
+                       event.payload == payload);
+  }
+  CHECK(server_received);
+}
+
 static void AsyncResultAfterResetDropped() {
   ConnectionEngine left(LocalPolicy{}, make_registry());
   ConnectionEngine right(LocalPolicy{}, make_registry());
@@ -256,6 +311,8 @@ void register_multiplex_tests() {
            &ResumeReturnsRetainedFramesFromRequestedSequence);
   add_test("EngineLoadsReplaySnapshotBeforeStart", &EngineLoadsReplaySnapshotBeforeStart);
   add_test("EngineRejectsReplaySnapshotAfterStart", &EngineRejectsReplaySnapshotAfterStart);
+  add_test("GatewayPumpsDeliveredMessageToDestinationConnection",
+           &GatewayPumpsDeliveredMessageToDestinationConnection);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);
   add_test("PluginDispatchCanRunOnDeterministicExecutor",
            &PluginDispatchCanRunOnDeterministicExecutor);

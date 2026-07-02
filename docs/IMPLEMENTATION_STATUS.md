@@ -8,17 +8,17 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, Unix transport and socket CLI negotiation, gateway route, executor-backed plugin dispatch, and plugin lease primitives are present.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, Unix transport and socket CLI negotiation, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-017/LAT-018 advanced: the CLI now registers memory command smokes in CTest and exposes Unix socket probe, one-connection serve, and bridge route-validation commands over the POSIX transport/listener adapters while Windows returns stable unsupported transport failures.
+LAT-013 advanced: registered gateway routes can now pump a delivered logical message into an already-open destination `ConnectionEngine`, producing real DATA frames and preserving route translation and destination limit checks.
 
 ## Next Actionable Ticket
 
 Next source tickets:
 
-- Implement continuous Unix bridge data-plane channel pumping.
+- Wrap the gateway data-plane pump in a continuous Unix socket event loop.
 - Wire durable replay snapshots into CLI/daemon storage lifecycle.
 
 ## Completed Modules
@@ -35,7 +35,7 @@ Next source tickets:
 - `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
-- `Gateway`: route IDs, registered source-route bridging, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
+- `Gateway`: route IDs, registered source-route bridging, connection data-plane pumping into active destination channels, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
@@ -45,7 +45,7 @@ Next source tickets:
 ## In Progress Modules
 
 - Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, and engine pre-start snapshot loading are integrated; CLI/daemon durable storage lifecycle wiring remains incomplete.
-- Continuous CLI Unix bridge data-plane pumping remains incomplete; POSIX listener/transport primitives, Unix negotiation commands, portable memory bridge, and policy-file parsing are implemented.
+- Continuous CLI Unix socket event-loop pumping remains incomplete; the gateway data-plane pump, POSIX listener/transport primitives, Unix negotiation commands, portable memory bridge, and policy-file parsing are implemented.
 
 ## Known Blockers
 
@@ -69,7 +69,7 @@ Next source tickets:
 
 - ADR-0001 records a compact MVP implementation with memory transport and deterministic single-loop state.
 - ADR-0002 records static C++ plugin registration instead of dynamic code loading.
-- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while continuous bridge forwarding remains a documented full-version gap.
+- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while continuous socket event-loop forwarding remains a documented full-version gap.
 
 ## Last Verified Commit
 

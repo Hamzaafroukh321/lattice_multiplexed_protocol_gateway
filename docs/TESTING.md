@@ -25,7 +25,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.
-- Gateway registered-route bridging and typed asymmetric schema translation.
+- Gateway registered-route bridging, connection data-plane pumping, and typed asymmetric schema translation.
 - Unix transport/listener primitives on POSIX or stable unsupported transport errors on Windows.
 - Executor-backed plugin dispatch and deferred completion.
 - Bounded executor admission, deterministic drain order, and cancellation.
