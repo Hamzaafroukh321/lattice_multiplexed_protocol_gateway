@@ -23,6 +23,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - CLI memory bridge route smoke and route-policy fixture parsing.
 - CLI memory replay snapshot load/save smoke.
 - `lattice_bench_acceptance` release/debug probe for throughput, in-memory latency, active channels, default limits, process RSS, and fuzz-speed proxies.
+- Forty independent deep fuzz harness smokes registered from `fuzz/deep/`, covering frame, HELLO, connection, channel, reassembly, flow, replay, timer, trace, scheduler, gateway, plugin, executor, and memory transport surfaces.
 - CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows and POSIX socket bridge pump coverage under Linux Docker.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.

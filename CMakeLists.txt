@@ -92,6 +92,57 @@ foreach(fuzz_name IN ITEMS lattice_frame_fuzz lattice_connection_event_fuzz latt
   lattice_apply_sanitizers(${fuzz_name})
 endforeach()
 
+set(LATTICE_DEEP_FUZZ_TARGETS
+  lattice_frame_stream_fuzzer
+  lattice_frame_split_fuzzer
+  lattice_frame_extension_fuzzer
+  lattice_frame_header_limit_fuzzer
+  lattice_frame_crc_mutation_fuzzer
+  lattice_frame_concat_eof_fuzzer
+  lattice_hello_payload_fuzzer
+  lattice_negotiation_matrix_fuzzer
+  lattice_capability_policy_fuzzer
+  lattice_connection_peer_bytes_fuzzer
+  lattice_connection_chunk_fuzzer
+  lattice_connection_open_fuzzer
+  lattice_connection_data_ext_fuzzer
+  lattice_connection_credit_ack_fuzzer
+  lattice_connection_resume_fuzzer
+  lattice_connection_timer_fuzzer
+  lattice_connection_reset_goaway_fuzzer
+  lattice_connection_outbound_fuzzer
+  lattice_connection_multichannel_fuzzer
+  lattice_connection_event_script_fuzzer
+  lattice_channel_table_fuzzer
+  lattice_reassembler_ranges_fuzzer
+  lattice_reassembler_overlap_fuzzer
+  lattice_flow_account_fuzzer
+  lattice_replay_window_fuzzer
+  lattice_replay_snapshot_fuzzer
+  lattice_ack_payload_fuzzer
+  lattice_timer_wheel_fuzzer
+  lattice_trace_parse_fuzzer
+  lattice_trace_build_fuzzer
+  lattice_scheduler_mixed_fuzzer
+  lattice_scheduler_backpressure_fuzzer
+  lattice_scheduler_order_fuzzer
+  lattice_gateway_policy_fuzzer
+  lattice_gateway_route_fuzzer
+  lattice_gateway_bridge_fuzzer
+  lattice_plugin_registry_fuzzer
+  lattice_executor_queue_fuzzer
+  lattice_threaded_executor_fuzzer
+  lattice_memory_transport_fuzzer)
+
+foreach(fuzz_name IN LISTS LATTICE_DEEP_FUZZ_TARGETS)
+  add_executable(${fuzz_name} fuzz/deep/${fuzz_name}.cpp)
+  target_include_directories(${fuzz_name} PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/fuzz)
+  target_link_libraries(${fuzz_name} PRIVATE lattice_core)
+  lattice_apply_warnings(${fuzz_name})
+  lattice_apply_sanitizers(${fuzz_name})
+  add_test(NAME ${fuzz_name}_smoke COMMAND ${fuzz_name})
+endforeach()
+
 install(TARGETS lattice_core lattice
   EXPORT latticeTargets
   RUNTIME DESTINATION bin

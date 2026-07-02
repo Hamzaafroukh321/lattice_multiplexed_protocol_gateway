@@ -8,11 +8,11 @@ Generated from this environment: 2026-07-02.
 
 ## Current Phase
 
-Full implementation verification. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, deterministic/threaded executor primitives, executor-backed plugin dispatch, plugin lease primitives, acceptance benchmark probes, fuzz smoke targets, and traceability documentation are present.
+Full implementation verification. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, deterministic/threaded executor primitives, executor-backed plugin dispatch, plugin lease primitives, acceptance benchmark probes, three historical fuzz smoke targets, 40 deep fuzz targets, ClusterFuzzLite metadata, and traceability documentation are present.
 
 ## Last Completed Ticket
 
-LAT-R020 advanced: `lattice_bench` now measures the remaining performance budgets directly: frame throughput, in-memory p99 latency, default size limits, 256 active channels, process RSS, and fuzz-harness speed proxies.
+Deep fuzzing advanced: the repository now includes 40 independent libFuzzer-compatible entry points plus `.clusterfuzzlite/build.sh`, `.clusterfuzzlite/project.yaml`, and `fuzz/dictionary.txt`.
 
 ## Next Actionable Ticket
 
@@ -38,6 +38,7 @@ No source ticket is currently open from the selected specification. Remaining wo
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export with next-sequence restoration, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
 - CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/continuous bridge loop, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- Deep fuzz suite: 40 independent libFuzzer-compatible harnesses covering frame, HELLO, negotiation, connection, channel, reassembly, flow, replay, timer, trace, scheduler, gateway, plugin, executor, threaded executor, and memory transport paths.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## Integrated Full-Version Modules
@@ -55,9 +56,10 @@ No source ticket is currently open from the selected specification. Remaining wo
 
 - Debug configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-debug` preset.
 - Release configure/build: Passed with CMake 4.3.3, Ninja, Clang 22.1.8 using the checked-in `local-clang-release` preset and the generic `release` tree.
-- Unit/integration and CLI CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug.
-- Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
-- ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
+- Unit/integration, CLI, benchmark, and deep fuzz CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug.
+- Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, `lattice_gateway_trace_fuzz`, and the 40-target deep fuzz suite.
+- ClusterFuzzLite: Ubuntu 24.04 Docker with Clang built all 40 `.clusterfuzzlite` fuzzers into `$OUT`.
+- ASan/UBSan: Release build and tests passed with LLVM sanitizer runtime on `PATH`. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Passed under Ubuntu 24.04 Docker with GCC 13.3 using `setarch x86_64 -R`; Windows Clang target remains unsupported for TSan.
 - Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1241.36 MiB/s decode throughput, 47.4 us p99 in-memory 1 KiB message latency with plugin work deferred, 256 active channels, 5.23047 MiB process RSS, about 6.75M frame fuzz exec/s, and 11.63k connection-event exec/s.
 - Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` passed memory probe repetitions.
