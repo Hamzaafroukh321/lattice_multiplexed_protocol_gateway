@@ -9,6 +9,11 @@ static OutboundItem item(OutboundPriority priority, std::uint32_t channel, std::
   return OutboundItem{priority, ChannelId{channel, 1U}, sequence, Bytes{byte}};
 }
 
+static OutboundItem bytes_item(OutboundPriority priority, std::uint32_t channel,
+                               std::uint32_t sequence, Bytes bytes) {
+  return OutboundItem{priority, ChannelId{channel, 1U}, sequence, std::move(bytes)};
+}
+
 static void SchedulerBoundsQueues() {
   OutboundScheduler scheduler(2U);
   REQUIRE_OK(scheduler.enqueue(item(OutboundPriority::data, 1U, 1U, 'a')));
@@ -40,8 +45,53 @@ static void PerChannelOrderUnderPriority() {
   CHECK(batch[0].sequence == 2U);
 }
 
+static void PartialWriteRetainsLease() {
+  OutboundScheduler scheduler(16U);
+  REQUIRE_OK(scheduler.enqueue(bytes_item(OutboundPriority::data, 3U, 1U,
+                                          Bytes{'a', 'b', 'c', 'd'})));
+  REQUIRE_OK(scheduler.enqueue(bytes_item(OutboundPriority::data, 3U, 2U,
+                                          Bytes{'e', 'f'})));
+  auto batch = scheduler.drain(2U);
+  CHECK(batch.size() == 1U);
+  CHECK(batch[0].sequence == 1U);
+  CHECK(batch[0].encoded == Bytes({'a', 'b'}));
+  CHECK(scheduler.queued_bytes() == 4U);
+
+  batch = scheduler.drain(3U);
+  CHECK(batch.size() == 1U);
+  CHECK(batch[0].sequence == 1U);
+  CHECK(batch[0].encoded == Bytes({'c', 'd'}));
+  CHECK(scheduler.queued_bytes() == 2U);
+
+  batch = scheduler.drain(2U);
+  CHECK(batch.size() == 1U);
+  CHECK(batch[0].sequence == 2U);
+  CHECK(batch[0].encoded == Bytes({'e', 'f'}));
+  CHECK(scheduler.empty());
+}
+
+static void PartialControlDrainsBeforeDataTail() {
+  OutboundScheduler scheduler(16U);
+  REQUIRE_OK(scheduler.enqueue(bytes_item(OutboundPriority::data, 1U, 1U, Bytes{'d'})));
+  REQUIRE_OK(scheduler.enqueue(bytes_item(OutboundPriority::control, 0U, 0U,
+                                          Bytes{'c', 't'})));
+  auto batch = scheduler.drain(1U);
+  CHECK(batch.size() == 1U);
+  CHECK(batch[0].priority == OutboundPriority::control);
+  CHECK(batch[0].encoded == Bytes({'c'}));
+
+  batch = scheduler.drain(2U);
+  CHECK(batch.size() == 2U);
+  CHECK(batch[0].priority == OutboundPriority::control);
+  CHECK(batch[0].encoded == Bytes({'t'}));
+  CHECK(batch[1].priority == OutboundPriority::data);
+  CHECK(batch[1].encoded == Bytes({'d'}));
+}
+
 void register_scheduler_tests() {
   add_test("SchedulerBoundsQueues", &SchedulerBoundsQueues);
   add_test("ControlDrainsBeforeData", &ControlDrainsBeforeData);
   add_test("PerChannelOrderUnderPriority", &PerChannelOrderUnderPriority);
+  add_test("PartialWriteRetainsLease", &PartialWriteRetainsLease);
+  add_test("PartialControlDrainsBeforeDataTail", &PartialControlDrainsBeforeDataTail);
 }

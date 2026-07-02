@@ -32,7 +32,7 @@ Next source tickets:
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, and exact retained suffix lookup for RESUME.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
-- `OutboundScheduler`: bounded control/data queues with per-channel sequence order.
+- `OutboundScheduler`: bounded control/data queues with per-channel sequence order and partial-write tail retention.
 - `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
@@ -45,7 +45,6 @@ Next source tickets:
 
 ## In Progress Modules
 
-- `ConnectionEngine` routes emitted frames through `OutboundScheduler`, but partial-write transport integration remains shallow.
 - Keepalive/retransmission timers and in-process retained RESUME continuation are integrated; durable retained state across process restart remains incomplete.
 - CLI Unix endpoint serving and policy-file bridge mode remain incomplete.
 

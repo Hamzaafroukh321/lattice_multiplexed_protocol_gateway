@@ -34,11 +34,23 @@ Result<void> OutboundScheduler::enqueue(OutboundItem item) {
 std::vector<OutboundItem> OutboundScheduler::drain(std::size_t writable_bytes) {
   std::vector<OutboundItem> out;
   std::size_t used = 0;
-  while (!control_.empty() && used + control_.front().encoded.size() <= writable_bytes) {
-    used += control_.front().encoded.size();
-    queued_bytes_ -= control_.front().encoded.size();
-    out.push_back(std::move(control_.front()));
-    control_.pop_front();
+  while (!control_.empty() && used < writable_bytes) {
+    OutboundItem& item = control_.front();
+    const std::size_t available = writable_bytes - used;
+    const std::size_t take = std::min(available, item.encoded.size());
+    OutboundItem chunk = item;
+    chunk.encoded.assign(item.encoded.begin(),
+                         item.encoded.begin() + static_cast<std::ptrdiff_t>(take));
+    out.push_back(std::move(chunk));
+    used += take;
+    queued_bytes_ -= take;
+    if (take == item.encoded.size()) {
+      control_.pop_front();
+    } else {
+      item.encoded.erase(item.encoded.begin(),
+                         item.encoded.begin() + static_cast<std::ptrdiff_t>(take));
+      return out;
+    }
   }
   if (used >= writable_bytes || data_.empty()) {
     return out;
@@ -71,15 +83,26 @@ std::vector<OutboundItem> OutboundScheduler::drain(std::size_t writable_bytes) {
     if (expected != 0U && item.sequence != expected) {
       continue;
     }
-    if (used + item.encoded.size() > writable_bytes) {
+    const std::size_t available = writable_bytes - used;
+    const std::size_t take = std::min(available, item.encoded.size());
+    if (take == 0U) {
       continue;
     }
-    used += item.encoded.size();
-    queued_bytes_ -= item.encoded.size();
-    expected_sequence_[channel_no] = item.sequence + 1U;
+    OutboundItem chunk = item;
+    chunk.encoded.assign(item.encoded.begin(),
+                         item.encoded.begin() + static_cast<std::ptrdiff_t>(take));
+    used += take;
+    queued_bytes_ -= take;
     rr_cursor_ = channel_no + 1U;
-    out.push_back(std::move(item));
-    queue_it->second.pop_front();
+    out.push_back(std::move(chunk));
+    if (take == item.encoded.size()) {
+      expected_sequence_[channel_no] = item.sequence + 1U;
+      queue_it->second.pop_front();
+    } else {
+      item.encoded.erase(item.encoded.begin(),
+                         item.encoded.begin() + static_cast<std::ptrdiff_t>(take));
+      break;
+    }
   }
   for (auto it = data_.begin(); it != data_.end();) {
     if (it->second.empty()) {

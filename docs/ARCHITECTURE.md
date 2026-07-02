@@ -22,7 +22,7 @@ Lattice is organized as a small set of deterministic modules.
 
 `UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. Windows builds return stable transport-scoped unsupported errors for those operations.
 
-`OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels.
+`OutboundScheduler` provides bounded control/data queues. Control frames drain first; data queues preserve per-channel sequence order and rotate across channels. Short writes return exact prefix chunks and keep the unsent tail at the head of its queue.
 
 `TimerWheel` stores timer events with stable IDs, channel generations, and deterministic due-time ordering.
 
