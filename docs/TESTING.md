@@ -29,6 +29,9 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
 - Gateway route creation, pure translation, destination limit revalidation, and schema mismatch rejection.
 - Gateway registered-route bridging, connection data-plane pumping, and typed asymmetric schema translation.
+- Route policy parsing, duplicate-source rejection, malformed hex rejection, canonical serialization, source lookup, and gateway registration.
+- Frame inspection over encoded streams, malformed decoder input, missing DATA extensions, sequence rewind warnings, and connection-event summaries.
+- Health scoring for stream reports, connection summaries, route policy documents, merged reports, severity filtering, and signal bucketing.
 - Unix transport/listener primitives on POSIX or stable unsupported transport errors on Windows.
 - `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` memory probe soak.
 - Executor-backed plugin dispatch and deferred completion.

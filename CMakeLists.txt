@@ -24,6 +24,9 @@ add_library(lattice_core
   src/schedule/outbound_scheduler.cpp
   src/plugin/registry.cpp
   src/gateway/gateway.cpp
+  src/gateway/route_policy.cpp
+  src/diagnostics/inspection.cpp
+  src/diagnostics/health.cpp
   src/transport/memory_transport.cpp
   src/transport/unix_transport.cpp
   src/connection/engine.cpp)
@@ -52,6 +55,9 @@ add_executable(lattice_tests
   tests/unit/channel_tests.cpp
   tests/unit/flow_tests.cpp
   tests/unit/gateway_tests.cpp
+  tests/unit/inspection_tests.cpp
+  tests/unit/route_policy_tests.cpp
+  tests/unit/health_tests.cpp
   tests/unit/executor_tests.cpp
   tests/unit/plugin_tests.cpp
   tests/unit/replay_tests.cpp

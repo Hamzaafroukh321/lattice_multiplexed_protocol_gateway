@@ -20,6 +20,12 @@ Lattice is organized as a small set of deterministic modules.
 
 `Gateway` allows opaque forwarding only when source and destination advertise the same family ID and schema hash. Routes carry source channel, destination channel, and plugin family IDs. Registered source routes can produce explicit forwarded-message objects or emit DATA frames through an already-open destination `ConnectionEngine`. Optional pure translators may transform payloads across asymmetric schema hashes before destination limits are revalidated.
 
+`RoutePolicyDocument` parses canonical text route sections into source/destination/family bindings, validates duplicate sources and names, serializes stable policy text, and can register entries directly on a `Gateway`.
+
+`FrameInspection` decodes byte streams through the production `FrameCodec`, records per-frame observations, flags malformed DATA extension sets, sequence rewinds, decoder errors, control payload anomalies, and summarizes connection events for diagnostics.
+
+`HealthReport` turns inspection, connection-event, and route-policy evidence into scored healthy/degraded/failed reports. Signals are filterable and bucketed by code so test and operator tooling can identify the strongest failure class without re-parsing free-form text.
+
 `DeterministicExecutor` provides bounded task admission and deterministic task draining for tests, plugin dispatch, and loop sharding. `ThreadedExecutor` provides bounded per-shard worker queues for runtime execution while preserving serial order within each shard. `ConnectionShardRouter` assigns connection IDs to stable executor shards so multi-connection work preserves actor confinement.
 
 `UnixTransport` provides POSIX Unix-domain connect/socketpair/read/write primitives. `UnixListener` provides POSIX bind/listen/accept primitives for endpoint integration. Windows builds return stable transport-scoped unsupported errors for those operations.

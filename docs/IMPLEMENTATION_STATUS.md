@@ -5,7 +5,8 @@
 Full implementation verification. The compact production implementation builds
 with CMake, Ninja, and Clang. Scheduler, timer, trace, ACK, RESUME-window,
 PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI
-loop, gateway route/data-plane pump, deterministic/threaded executor primitives,
+loop, gateway route/data-plane pump, route policy validation, frame inspection,
+health scoring, deterministic/threaded executor primitives,
 executor-backed plugin dispatch, plugin lease primitives, acceptance benchmark
 probes, three production fuzz smoke targets, 40 deep fuzz targets,
 ClusterFuzzLite metadata, and traceability documentation are present.
@@ -26,6 +27,9 @@ ClusterFuzzLite metadata, and traceability documentation are present.
 - `PluginRegistry`: static family registration and built-in echo plugin.
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, connection data-plane pumping into active destination channels, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
+- `RoutePolicy`: canonical text parsing, duplicate source/name validation, stable serialization, source lookup, and direct gateway route registration.
+- `FrameInspection`: production decoder-backed stream inspection, DATA extension validation, sequence/goaway/control payload diagnostics, and connection event summaries.
+- `HealthReport`: scored healthy/degraded/failed reports over streams, connection summaries, and route policies with filterable and bucketed signals.
 - `DeterministicExecutor`/`ThreadedExecutor`: bounded task admission, deterministic drain order for tests, per-shard threaded runtime execution, cancellation/shutdown, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export with next-sequence restoration, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
@@ -48,8 +52,8 @@ ClusterFuzzLite metadata, and traceability documentation are present.
 
 - Debug configure/build: Passed with CMake 4.3.3, Ninja, and Clang 22.1.8 using the checked-in `local-clang-debug` preset.
 - Release configure/build: Passed with CMake 4.3.3, Ninja, and Clang 22.1.8 using the checked-in `local-clang-release` preset and the generic `release` tree.
-- Unit/integration, CLI, benchmark, and deep fuzz CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug.
-- Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, `lattice_gateway_trace_fuzz`, and the 40-target deep fuzz suite.
+- Unit/integration, CLI, benchmark, and deep fuzz CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug. Latest local Debug CTest passed 48/48 after the diagnostics and health modules were added.
+- Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, `lattice_gateway_trace_fuzz`, and the 40-target deep fuzz suite. Latest local Debug run passed the three historical fuzz smoke executables and all 40 deep fuzz CTest smokes.
 - ClusterFuzzLite: Ubuntu 24.04 Docker with Clang built all 40 `.clusterfuzzlite` fuzzers into `$OUT`.
 - ASan/UBSan: Release build and tests passed with LLVM sanitizer runtime on `PATH`.
 - TSan: Passed under Ubuntu 24.04 Docker with GCC 13.3 using `setarch x86_64 -R`.
