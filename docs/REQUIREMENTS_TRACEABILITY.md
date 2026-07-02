@@ -9,7 +9,7 @@
 | LAT-R005 | 10 | HELLO negotiation intersects versions, limits, features, plugin schemas | `src/connection/negotiator.cpp` | `LimitIntersectionUsesMinimum`, `SchemaHashMismatchRejectsOpen` | Implemented | pending |
 | LAT-R006 | 6,8 | Compound channel number/generation identity and reuse | `include/lattice/channel.hpp`, `src/channel/channel_state.cpp` | `ChannelGenerationIncrements`, `LateFrameForOldGenerationRejected` | Implemented | pending |
 | LAT-R007 | 8 | Channel half-close and reset transitions | `src/channel/channel_state.cpp`, `src/connection/engine.cpp` | `HalfCloseDirectionsIndependent` | Implemented | pending |
-| LAT-R008 | 10,12 | Fragment range, overlap, and message cap validation | `src/channel/channel_state.cpp` | `TwoFragmentMessageDelivery`, `ConflictingOverlapResets` | Implemented | pending |
+| LAT-R008 | 10,12 | Fragment range, overlap, retained sparse-fragment budget, and message cap validation | `src/channel/channel_state.cpp` | `TwoFragmentMessageDelivery`, `ConflictingOverlapResets`, `ConflictingOverlapReleasesRetainedBytes`, `SparseFragmentsRespectRetainedBudget` | Implemented | pending |
 | LAT-R009 | 10,18 | Byte-credit reservation/release/grant conservation | `src/channel/channel_state.cpp` | `CreditConservationProperty`, `CreditOverflowCloses` | Implemented | pending |
 | LAT-R010 | 11 | Public API for connection create/start/open/send/credit/half-close/reset | `include/lattice/connection.hpp`, `src/connection/engine.cpp` | integration tests | Implemented | pending |
 | LAT-R011 | 11,14 | Built-in plugin receives complete validated messages | `include/lattice/plugin.hpp`, `src/plugin/registry.cpp`, `src/connection/engine.cpp` | `TwoFragmentMessageDeliveryThroughEchoPlugin` | Implemented | pending |

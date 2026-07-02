@@ -74,9 +74,11 @@ Result<std::optional<LogicalMessage>> Reassembler::insert(ChannelId channel,
     return channel_error(ErrorCode::fragment_range, channel, "fragment extends past total length");
   }
   auto& pending = pending_[sequence];
+  const bool new_pending = pending.total == 0U;
   if (pending.total == 0U) {
     pending.total = total;
   } else if (pending.total != total) {
+    reset_message(sequence);
     return channel_error(ErrorCode::fragment_range, channel, "message total changed");
   }
 
@@ -94,7 +96,7 @@ Result<std::optional<LogicalMessage>> Reassembler::insert(ChannelId channel,
       const std::uint8_t old_byte = range.bytes[pos - range.offset];
       const std::uint8_t new_byte = bytes[pos - offset];
       if (old_byte != new_byte) {
-        pending_.erase(sequence);
+        reset_message(sequence);
         return channel_error(ErrorCode::fragment_overlap, channel,
                              "conflicting overlapping fragment bytes");
       }
@@ -104,10 +106,19 @@ Result<std::optional<LogicalMessage>> Reassembler::insert(ChannelId channel,
     }
   }
 
+  std::size_t next_retained = 0;
+  if (!checked_add(retained_, bytes.size(), &next_retained) || next_retained > max_message_) {
+    if (new_pending && pending.ranges.empty()) {
+      pending_.erase(sequence);
+    }
+    return channel_error(ErrorCode::resource_limit, channel,
+                         "retained incomplete fragments exceed receive budget");
+  }
+
   Range added;
   added.offset = offset;
   added.bytes.assign(bytes.begin(), bytes.end());
-  retained_ += added.bytes.size();
+  retained_ = next_retained;
   pending.ranges.push_back(std::move(added));
   std::sort(pending.ranges.begin(), pending.ranges.end(),
             [](const Range& a, const Range& b) { return a.offset < b.offset; });

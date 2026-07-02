@@ -7,6 +7,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Canonical extension ordering.
 - Channel generation increments and stale ID rejection.
 - Fragment completion and conflicting overlap.
+- Sparse incomplete-fragment retained budget and cleanup after overlap reset.
 - Half-close direction independence.
 - Credit conservation and overflow.
 - Replay ACK retirement and identical retry bytes.

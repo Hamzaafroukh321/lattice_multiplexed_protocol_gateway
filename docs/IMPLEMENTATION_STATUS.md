@@ -28,7 +28,7 @@ Next source tickets:
 - `FrameCodec` compatibility: unknown optional extensions are accepted, unknown required extensions reject with a stable error.
 - `Negotiator`: HELLO encode/decode, version/limit/feature/plugin schema intersection, transcript hash.
 - `ChannelTable`: generated channels, generations, tombstones, remote OPEN acceptance, half-close/reset.
-- `Reassembler`: bounded non-overlapping fragments and exact complete-message delivery.
+- `Reassembler`: bounded non-overlapping fragments, retained sparse-fragment budget enforcement, retained-byte cleanup on reset, and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, and exact retained suffix lookup for RESUME.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.

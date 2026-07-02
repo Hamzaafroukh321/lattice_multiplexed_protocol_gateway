@@ -45,6 +45,28 @@ static void ConflictingOverlapResets() {
   CHECK(conflict.error().code == ErrorCode::fragment_overlap);
 }
 
+static void ConflictingOverlapReleasesRetainedBytes() {
+  Reassembler reassembler(64U);
+  ChannelId id{3U, 1U};
+  REQUIRE_OK(reassembler.insert(id, 1U, 0U, 4U, Bytes{'a', 'b', 'c'}));
+  auto conflict = reassembler.insert(id, 1U, 1U, 4U, Bytes{'X'});
+  CHECK(!conflict);
+  CHECK(reassembler.retained_bytes() == 0U);
+}
+
+static void SparseFragmentsRespectRetainedBudget() {
+  Reassembler reassembler(4U);
+  ChannelId id{4U, 1U};
+  REQUIRE_OK(reassembler.insert(id, 1U, 0U, 4U, Bytes{'a'}));
+  REQUIRE_OK(reassembler.insert(id, 2U, 0U, 4U, Bytes{'b'}));
+  REQUIRE_OK(reassembler.insert(id, 3U, 0U, 4U, Bytes{'c'}));
+  REQUIRE_OK(reassembler.insert(id, 4U, 0U, 4U, Bytes{'d'}));
+  auto rejected = reassembler.insert(id, 5U, 0U, 4U, Bytes{'e'});
+  CHECK(!rejected);
+  CHECK(rejected.error().code == ErrorCode::resource_limit);
+  CHECK(reassembler.retained_bytes() == 4U);
+}
+
 static void HalfCloseDirectionsIndependent() {
   ChannelTable table(1U, 1024U, 4096U);
   auto id = table.allocate();
@@ -64,5 +86,8 @@ void register_channel_tests() {
   add_test("ChannelGenerationIncrements", &ChannelGenerationIncrements);
   add_test("TwoFragmentMessageDelivery", &TwoFragmentMessageDelivery);
   add_test("ConflictingOverlapResets", &ConflictingOverlapResets);
+  add_test("ConflictingOverlapReleasesRetainedBytes",
+           &ConflictingOverlapReleasesRetainedBytes);
+  add_test("SparseFragmentsRespectRetainedBudget", &SparseFragmentsRespectRetainedBudget);
   add_test("HalfCloseDirectionsIndependent", &HalfCloseDirectionsIndependent);
 }
