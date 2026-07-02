@@ -8,6 +8,8 @@ Lattice is organized as a small set of deterministic modules.
 
 `ConnectionEngine` is the single mutation point for protocol state. It handles frames in event order, owns `ChannelTable`, records outbound bytes in `ReplayWindow`, and emits diagnostic events for scoped errors.
 
+`ReplaySnapshotStore` provides the process file boundary for canonical `LTXREPLAY/1` snapshots. It loads text snapshots before connection start and saves through a temporary file followed by rename publication.
+
 `ChannelTable` owns slots keyed by `channel_number:generation`. A slot moves through `free -> opening/open -> half closed/closing -> tombstone -> free`. Reuse increments generation and old compound IDs are rejected.
 
 `Reassembler` stores byte ranges by message sequence and validates total length, offset arithmetic, exact duplicate bytes, and overlap conflicts before producing an immutable logical message.

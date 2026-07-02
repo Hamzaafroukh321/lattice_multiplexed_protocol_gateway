@@ -24,6 +24,12 @@ Expected output shape:
 LTX/1 max_frame=65536 max_message=1048576 channels=256 plugins=1
 ```
 
+Replay retention snapshots can be persisted by the memory probe:
+
+```powershell
+.\build\debug\lattice.exe probe --memory --snapshot build\debug\memory_probe.ltxreplay
+```
+
 On POSIX hosts, the same HELLO negotiation path is available over Unix-domain
 sockets:
 

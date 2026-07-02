@@ -33,3 +33,4 @@
 - Added `ConnectionEngine` replay snapshot export and pre-start load validation.
 - Added Unix socket CLI negotiation commands and CTest CLI smoke coverage.
 - Added gateway route pumping into active destination connections.
+- Added durable replay snapshot store and CLI memory snapshot load/save smoke.

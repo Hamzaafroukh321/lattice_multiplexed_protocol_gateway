@@ -19,6 +19,7 @@ add_library(lattice_core
   src/connection/event_loop.cpp
   src/channel/channel_state.cpp
   src/replay/replay_window.cpp
+  src/replay/replay_store.cpp
   src/replay/trace.cpp
   src/schedule/outbound_scheduler.cpp
   src/plugin/registry.cpp
@@ -63,6 +64,8 @@ lattice_apply_sanitizers(lattice_tests)
 add_test(NAME lattice_tests COMMAND lattice_tests)
 
 add_test(NAME lattice_cli_probe_memory COMMAND lattice probe --memory)
+add_test(NAME lattice_cli_probe_memory_snapshot
+  COMMAND lattice probe --memory --snapshot ${CMAKE_CURRENT_BINARY_DIR}/memory_probe.ltxreplay)
 add_test(NAME lattice_cli_bridge_memory_policy
   COMMAND lattice bridge --memory --policy ${CMAKE_CURRENT_SOURCE_DIR}/fixtures/ltx1/memory_bridge.policy)
 if(WIN32)

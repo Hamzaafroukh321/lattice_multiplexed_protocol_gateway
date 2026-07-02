@@ -1,5 +1,6 @@
 #include "lattice/connection.hpp"
 #include "lattice/gateway.hpp"
+#include "lattice/replay_store.hpp"
 #include "lattice/trace.hpp"
 
 #include <algorithm>
@@ -50,6 +51,11 @@ int unix_failure_exit() {
 int print_error(const lattice::Error& error, int exit_code = 3) {
   std::cerr << error.stable_code() << ": " << error.detail << '\n';
   return exit_code;
+}
+
+lattice::Result<void> snapshot_error(const std::string& detail) {
+  return lattice::make_error(lattice::ErrorScope::internal, lattice::ErrorCode::resource_limit,
+                             lattice::CloseAction::none, detail);
 }
 
 std::string trim(std::string text) {
@@ -242,6 +248,38 @@ lattice::Result<void> negotiate_unix_peer(lattice::UnixTransport& transport,
   return {};
 }
 
+lattice::Result<void> load_snapshot_if_present(lattice::ConnectionEngine& engine,
+                                               const std::string& path) {
+  if (path.empty()) {
+    return {};
+  }
+  std::error_code exists_error;
+  const bool exists = std::filesystem::exists(path, exists_error);
+  if (exists_error) {
+    return snapshot_error("cannot inspect replay snapshot path");
+  }
+  if (!exists) {
+    return {};
+  }
+  auto text = lattice::ReplaySnapshotStore::load_text(path);
+  if (!text) {
+    return text.error();
+  }
+  return engine.load_replay_snapshot(text.value());
+}
+
+lattice::Result<void> save_snapshot(const lattice::ConnectionEngine& engine,
+                                    const std::string& path) {
+  if (path.empty()) {
+    return {};
+  }
+  auto text = engine.export_replay_snapshot();
+  if (!text) {
+    return text.error();
+  }
+  return lattice::ReplaySnapshotStore::save_text(path, text.value());
+}
+
 void print_capabilities(const char* prefix, const lattice::CapabilitySet& caps) {
   std::cout << prefix << " LTX/" << caps.major
             << " max_frame=" << caps.max_frame
@@ -321,9 +359,13 @@ int replay_trace(const std::string& path) {
   return 0;
 }
 
-int probe_memory() {
+int probe_memory(const std::string& snapshot_path = {}) {
   lattice::ConnectionEngine left(lattice::LocalPolicy{}, registry());
   lattice::ConnectionEngine right(lattice::LocalPolicy{}, registry());
+  auto loaded = load_snapshot_if_present(left, snapshot_path);
+  if (!loaded) {
+    return print_error(loaded.error());
+  }
   auto left_hello = left.start();
   auto right_hello = right.start();
   if (!left_hello || !right_hello) {
@@ -341,15 +383,23 @@ int probe_memory() {
             << " max_message=" << left.capabilities()->max_message
             << " channels=" << left.capabilities()->max_channels
             << " plugins=" << left.capabilities()->plugins.size() << '\n';
+  auto saved = save_snapshot(left, snapshot_path);
+  if (!saved) {
+    return print_error(saved.error());
+  }
   return 0;
 }
 
-int probe_unix(const std::string& path) {
+int probe_unix(const std::string& path, const std::string& snapshot_path = {}) {
   auto transport = lattice::UnixTransport::connect_path(path);
   if (!transport) {
     return print_error(transport.error(), unix_failure_exit());
   }
   lattice::ConnectionEngine engine(lattice::LocalPolicy{}, registry());
+  auto loaded = load_snapshot_if_present(engine, snapshot_path);
+  if (!loaded) {
+    return print_error(loaded.error());
+  }
   auto negotiated = negotiate_unix_peer(transport.value(), engine);
   if (!negotiated) {
     return print_error(negotiated.error(), unix_failure_exit());
@@ -359,10 +409,15 @@ int probe_unix(const std::string& path) {
     return 10;
   }
   print_capabilities("transport=unix", engine.capabilities().value());
+  auto saved = save_snapshot(engine, snapshot_path);
+  if (!saved) {
+    return print_error(saved.error());
+  }
   return 0;
 }
 
-int serve_unix(const std::string& path, const std::string& plugin) {
+int serve_unix(const std::string& path, const std::string& plugin,
+               const std::string& snapshot_path = {}) {
   if (plugin != "echo") {
     std::cerr << "lattice: unsupported plugin '" << plugin << "'\n";
     return 2;
@@ -376,6 +431,10 @@ int serve_unix(const std::string& path, const std::string& plugin) {
     return print_error(accepted.error(), unix_failure_exit());
   }
   lattice::ConnectionEngine engine(lattice::LocalPolicy{}, registry());
+  auto loaded = load_snapshot_if_present(engine, snapshot_path);
+  if (!loaded) {
+    return print_error(loaded.error());
+  }
   auto negotiated = negotiate_unix_peer(accepted.value(), engine);
   if (!negotiated) {
     return print_error(negotiated.error(), unix_failure_exit());
@@ -385,6 +444,10 @@ int serve_unix(const std::string& path, const std::string& plugin) {
     return 10;
   }
   print_capabilities("serve=unix", engine.capabilities().value());
+  auto saved = save_snapshot(engine, snapshot_path);
+  if (!saved) {
+    return print_error(saved.error());
+  }
   return 0;
 }
 
@@ -499,8 +562,9 @@ int bridge_unix(const UnixBridgeArgs& args) {
 void usage() {
   std::cout << "usage:\n"
             << "  lattice probe --memory\n"
-            << "  lattice probe --socket <path>\n"
-            << "  lattice serve --socket <path> --plugin echo\n"
+            << "  lattice probe --memory [--snapshot <file>]\n"
+            << "  lattice probe --socket <path> [--snapshot <file>]\n"
+            << "  lattice serve --socket <path> --plugin echo [--snapshot <file>]\n"
             << "  lattice bridge --memory [--policy <file>]\n"
             << "  lattice bridge --left <path> --right <path> --policy <file>\n"
             << "  lattice dump <file>\n"
@@ -519,12 +583,24 @@ int main(int argc, char** argv) {
   if (command == "probe" && argc == 3 && std::string(argv[2]) == "--memory") {
     return probe_memory();
   }
+  if (command == "probe" && argc == 5 && std::string(argv[2]) == "--memory" &&
+      std::string(argv[3]) == "--snapshot") {
+    return probe_memory(argv[4]);
+  }
   if (command == "probe" && argc == 4 && std::string(argv[2]) == "--socket") {
     return probe_unix(argv[3]);
+  }
+  if (command == "probe" && argc == 6 && std::string(argv[2]) == "--socket" &&
+      std::string(argv[4]) == "--snapshot") {
+    return probe_unix(argv[3], argv[5]);
   }
   if (command == "serve" && argc == 6 && std::string(argv[2]) == "--socket" &&
       std::string(argv[4]) == "--plugin") {
     return serve_unix(argv[3], argv[5]);
+  }
+  if (command == "serve" && argc == 8 && std::string(argv[2]) == "--socket" &&
+      std::string(argv[4]) == "--plugin" && std::string(argv[6]) == "--snapshot") {
+    return serve_unix(argv[3], argv[5], argv[7]);
   }
   if (command == "bridge" && argc == 3 && std::string(argv[2]) == "--memory") {
     return bridge_memory(BridgePolicy{});

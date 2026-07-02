@@ -8,18 +8,18 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, Unix transport and socket CLI negotiation, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI negotiation, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-013 advanced: registered gateway routes can now pump a delivered logical message into an already-open destination `ConnectionEngine`, producing real DATA frames and preserving route translation and destination limit checks.
+LAT-019 advanced: replay snapshots now have a durable temp-file publish/load boundary, engine startup import advances the next frame sequence safely, and the CLI memory probe exercises load-before-start plus save-after-negotiation.
 
 ## Next Actionable Ticket
 
 Next source tickets:
 
 - Wrap the gateway data-plane pump in a continuous Unix socket event loop.
-- Wire durable replay snapshots into CLI/daemon storage lifecycle.
+- Add long-running daemon snapshot rotation policy if a daemon mode is introduced.
 
 ## Completed Modules
 
@@ -30,6 +30,7 @@ Next source tickets:
 - `Reassembler`: bounded non-overlapping fragments, retained sparse-fragment budget enforcement, retained-byte cleanup on reset, and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, exact retained suffix lookup for RESUME, and canonical `LTXREPLAY/1` snapshot serialization/restore.
+- `ReplaySnapshotStore`: durable text snapshot load/save with temp-file publication.
 - `TimerWheel`: generation-tagged deterministic timer scheduling, cancellation, and expiration.
 - `OutboundScheduler`: bounded control/data queues with per-channel sequence order and partial-write tail retention.
 - `TraceLog`: deterministic `LTXTRACE/1` serialization, parsing, and canonical replay verification summaries.
@@ -37,14 +38,14 @@ Next source tickets:
 - `PluginLease`: quiescent unregister blocks while active or queued dispatch leases exist.
 - `Gateway`: route IDs, registered source-route bridging, connection data-plane pumping into active destination channels, exact schema-match opaque forwarding, typed asymmetric translators, and destination limit checks.
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
-- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
+- `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export with next-sequence restoration, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
-- CLI `probe`, memory `bridge`, Unix socket `probe`/one-connection `serve`/bridge route validation, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/bridge route validation, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## In Progress Modules
 
-- Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, and engine pre-start snapshot loading are integrated; CLI/daemon durable storage lifecycle wiring remains incomplete.
+- Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, engine pre-start snapshot loading, and CLI memory snapshot storage are integrated.
 - Continuous CLI Unix socket event-loop pumping remains incomplete; the gateway data-plane pump, POSIX listener/transport primitives, Unix negotiation commands, portable memory bridge, and policy-file parsing are implemented.
 
 ## Known Blockers

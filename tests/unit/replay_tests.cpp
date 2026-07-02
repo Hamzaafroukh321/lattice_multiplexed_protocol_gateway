@@ -2,6 +2,10 @@
 
 #include "lattice/replay.hpp"
 
+#include "lattice/replay_store.hpp"
+
+#include <filesystem>
+
 using namespace lattice;
 
 static void AckRangesRetireExactly() {
@@ -97,6 +101,23 @@ static void ReplaySnapshotRejectsCorruptState() {
   CHECK(unordered.error().code == ErrorCode::resume_rejected);
 }
 
+static void ReplaySnapshotStorePersistsAndLoadsText() {
+  const auto path = std::filesystem::current_path() / "replay_store_test.ltxreplay";
+  std::filesystem::remove(path);
+  ReplayWindow replay(4U);
+  REQUIRE_OK(replay.record(1U, 1U, Bytes{'a'}));
+  auto snapshot = replay.serialize_retained();
+  REQUIRE_OK(snapshot);
+  REQUIRE_OK(ReplaySnapshotStore::save_text(path, snapshot.value()));
+
+  auto loaded = ReplaySnapshotStore::load_text(path);
+  REQUIRE_OK(loaded);
+  CHECK(loaded.value() == snapshot.value());
+  auto restored = ReplayWindow::restore_retained(loaded.value());
+  REQUIRE_OK(restored);
+  std::filesystem::remove(path);
+}
+
 static void StaleTimerIgnoredAfterCancel() {
   TimerWheel wheel;
   auto first = wheel.schedule(TimerKind::retry, ChannelId{5U, 1U}, 20U);
@@ -116,5 +137,6 @@ void register_replay_tests() {
   add_test("RetainedFromReturnsExactSuffix", &RetainedFromReturnsExactSuffix);
   add_test("ReplaySnapshotRoundTripsRetainedBytes", &ReplaySnapshotRoundTripsRetainedBytes);
   add_test("ReplaySnapshotRejectsCorruptState", &ReplaySnapshotRejectsCorruptState);
+  add_test("ReplaySnapshotStorePersistsAndLoadsText", &ReplaySnapshotStorePersistsAndLoadsText);
   add_test("StaleTimerIgnoredAfterCancel", &StaleTimerIgnoredAfterCancel);
 }

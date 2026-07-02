@@ -1,6 +1,7 @@
 #include "lattice/connection.hpp"
 
 #include <algorithm>
+#include <limits>
 
 namespace lattice {
 namespace {
@@ -375,6 +376,17 @@ Result<void> ConnectionEngine::load_replay_snapshot(const std::string& text) {
     return restored.error();
   }
   replay_ = restored.take_value();
+  const auto latest = replay_.latest_sequence();
+  if (latest.has_value()) {
+    if (latest.value() == std::numeric_limits<std::uint32_t>::max()) {
+      return make_error(ErrorScope::connection, ErrorCode::resource_limit,
+                        CloseAction::close_connection,
+                        "replay snapshot frame sequence is exhausted");
+    }
+    next_frame_seq_ = latest.value() + 1U;
+  } else {
+    next_frame_seq_ = 1U;
+  }
   return {};
 }
 

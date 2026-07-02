@@ -190,6 +190,20 @@ static void EngineRejectsReplaySnapshotAfterStart() {
   CHECK(rejected.error().code == ErrorCode::illegal_state);
 }
 
+static void EngineStartsAfterReplaySnapshotLoad() {
+  ConnectionEngine source(LocalPolicy{}, make_registry());
+  auto hello = source.start();
+  REQUIRE_OK(hello);
+  auto snapshot = source.export_replay_snapshot();
+  REQUIRE_OK(snapshot);
+
+  ConnectionEngine restored(LocalPolicy{}, make_registry());
+  REQUIRE_OK(restored.load_replay_snapshot(snapshot.value()));
+  auto restored_hello = restored.start();
+  REQUIRE_OK(restored_hello);
+  CHECK(restored_hello.value().size() == 1U);
+}
+
 static void GatewayPumpsDeliveredMessageToDestinationConnection() {
   ConnectionEngine client(LocalPolicy{}, make_registry());
   ConnectionEngine ingress(LocalPolicy{}, make_registry());
@@ -311,6 +325,7 @@ void register_multiplex_tests() {
            &ResumeReturnsRetainedFramesFromRequestedSequence);
   add_test("EngineLoadsReplaySnapshotBeforeStart", &EngineLoadsReplaySnapshotBeforeStart);
   add_test("EngineRejectsReplaySnapshotAfterStart", &EngineRejectsReplaySnapshotAfterStart);
+  add_test("EngineStartsAfterReplaySnapshotLoad", &EngineStartsAfterReplaySnapshotLoad);
   add_test("GatewayPumpsDeliveredMessageToDestinationConnection",
            &GatewayPumpsDeliveredMessageToDestinationConnection);
   add_test("AsyncResultAfterResetDropped", &AsyncResultAfterResetDropped);

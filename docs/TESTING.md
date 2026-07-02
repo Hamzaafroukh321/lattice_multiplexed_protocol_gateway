@@ -13,7 +13,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Half-close direction independence.
 - Credit conservation and overflow.
 - Replay ACK retirement and identical retry bytes.
-- Replay retained-state snapshot round trip, corrupt-state rejection, and pre-start engine snapshot loading.
+- Replay retained-state snapshot round trip, corrupt-state rejection, durable store load/save, and pre-start engine snapshot loading.
 - ACK payload canonicalization, resume-window rejection, retained resume suffix replay, and generation-tagged timer cancellation.
 - Bounded outbound scheduling, control priority, and per-channel data ordering.
 - Partial write retention for data and control queues.
@@ -21,6 +21,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Deterministic trace serialization/parsing and canonical replay summary verification.
 - Published LTX/1 compatibility fixture replay verification.
 - CLI memory bridge route smoke and route-policy fixture parsing.
+- CLI memory replay snapshot load/save smoke.
 - CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
