@@ -34,9 +34,10 @@ cmake --build --preset release
 .\build\debug\lattice_frame_fuzz.exe
 .\build\debug\lattice_connection_event_fuzz.exe
 .\build\debug\lattice_gateway_trace_fuzz.exe
+.\build\local-clang-release\lattice_bench.exe
 ```
 
-Local note: CMake and a C++ compiler were not available on this machine's PATH during this run. The commands are therefore documented but not completed here.
+Local note: The repository has now been verified with local CMake 4.3.3, Ninja, Clang 22.1.8, Windows ASan/UBSan release testing, Ubuntu Docker Debug/TSan testing, fuzz smoke targets, a 5000-iteration memory-probe soak, and the pinned local Clang release acceptance benchmark.
 
 ## Risks And Mitigations
 

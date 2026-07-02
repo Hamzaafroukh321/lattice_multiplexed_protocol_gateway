@@ -22,6 +22,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - Published LTX/1 compatibility fixture replay verification.
 - CLI memory bridge route smoke and route-policy fixture parsing.
 - CLI memory replay snapshot load/save smoke.
+- `lattice_bench_acceptance` release/debug probe for throughput, in-memory latency, active channels, default limits, process RSS, and fuzz-speed proxies.
 - CLI Unix socket probe/serve/bridge command surface with stable unsupported behavior on Windows and POSIX socket bridge pump coverage under Linux Docker.
 - Plugin unregister quiescence and stale completion discard.
 - Handshake timeout, PING/PONG, missed-PONG liveness timeout, and RESUME rejection.
@@ -56,4 +57,14 @@ This local environment also has checked-in Clang/Ninja presets:
 cmake --preset local-clang-debug
 cmake --build --preset local-clang-debug
 ctest --preset local-clang-debug
+```
+
+For the local Clang ASan/UBSan release preset on Windows, include LLVM's
+sanitizer runtime directory on `PATH` before running CTest:
+
+```powershell
+$env:PATH='C:\Program Files\LLVM\lib\clang\22\lib\windows;'+$env:PATH
+cmake --preset local-clang-asan-release
+cmake --build --preset local-clang-asan-release
+ctest --preset local-clang-asan-release --output-on-failure
 ```

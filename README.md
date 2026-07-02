@@ -2,7 +2,7 @@
 
 Lattice is a C++20 local gateway core for the LTX/1 multiplexed binary protocol. It negotiates capabilities, opens generation-tagged channels, reassembles fragmented messages, enforces byte-credit windows, dispatches negotiated plugin families, records replay bytes, and forwards gateway traffic only through schema-safe opaque routes or typed translators.
 
-Maturity: hardening implementation. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory and Unix CLI paths, executor-backed plugin dispatch path, threaded executor primitive, stable shard routing, tests, fuzz smoke targets, compatibility fixture, Linux POSIX socket smoke, Linux TSan verification, and release decode benchmark are present.
+Maturity: full implementation with recorded verification. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory and Unix CLI paths, executor-backed plugin dispatch path, threaded executor primitive, stable shard routing, tests, fuzz smoke targets, compatibility fixture, Linux POSIX socket smoke, Linux TSan verification, and release acceptance benchmark are present.
 
 ## Build
 
@@ -10,6 +10,13 @@ Maturity: hardening implementation. The memory transport, Unix transport adapter
 cmake --preset debug
 cmake --build --preset debug
 ctest --preset debug
+```
+
+The release acceptance benchmark is also registered as `lattice_bench_acceptance`
+in CTest and can be run directly:
+
+```powershell
+.\build\local-clang-release\lattice_bench.exe
 ```
 
 ## Example

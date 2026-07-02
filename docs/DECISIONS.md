@@ -8,7 +8,7 @@ Decision: Implement the current `ConnectionEngine` as a deterministic single-loo
 
 Alternatives considered: introduce worker threads immediately, or make channel objects independently mutable. Both would increase race risk before the protocol invariants are covered by tests.
 
-Consequences: The MVP path is deterministic and testable. Stable connection-to-shard routing is implemented; threaded loop execution and TSan stress remain full-version work.
+Consequences: The MVP path is deterministic and testable. Stable connection-to-shard routing and bounded threaded shard execution are implemented. TSan stress is verified on Ubuntu Docker with ASLR disabled for the test process.
 
 Validation: Unit and integration test sources cover negotiation, generated channels, fragment delivery, stale generations, and credit conservation.
 

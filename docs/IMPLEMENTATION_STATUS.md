@@ -1,6 +1,6 @@
 ﻿# Implementation Status
 
-Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
+Generated from this environment: 2026-07-02.
 
 ## Selected Specification
 
@@ -8,17 +8,15 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, deterministic/threaded executor primitives, executor-backed plugin dispatch, and plugin lease primitives are present.
+Full implementation verification. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, deterministic/threaded executor primitives, executor-backed plugin dispatch, plugin lease primitives, acceptance benchmark probes, fuzz smoke targets, and traceability documentation are present.
 
 ## Last Completed Ticket
 
-LAT-018 advanced: a bounded `ThreadedExecutor` now runs per-shard worker queues with serial order inside each shard, stable shutdown, and first-error reporting.
+LAT-R020 advanced: `lattice_bench` now measures the remaining performance budgets directly: frame throughput, in-memory p99 latency, default size limits, 256 active channels, process RSS, and fuzz-harness speed proxies.
 
 ## Next Actionable Ticket
 
-Next source tickets:
-
-- Extend model/performance stress coverage beyond the current smoke and 5000-iteration soak.
+No source ticket is currently open from the selected specification. Remaining work is normal maintenance: rerun the recorded verification matrix after future code changes.
 
 ## Completed Modules
 
@@ -42,7 +40,7 @@ Next source tickets:
 - CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/continuous bridge loop, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
-## In Progress Modules
+## Integrated Full-Version Modules
 
 - Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, engine pre-start snapshot loading, and CLI memory snapshot storage are integrated.
 - POSIX Unix socket bridge pump is covered by Linux Docker runtime tests using `UnixTransport::pair_for_test`, production `ConnectionEngine` instances, and gateway forwarding.
@@ -61,7 +59,7 @@ Next source tickets:
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
 - TSan: Passed under Ubuntu 24.04 Docker with GCC 13.3 using `setarch x86_64 -R`; Windows Clang target remains unsupported for TSan.
-- Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1189.73, 1186.52, 1278.26, and 1306.83 MiB/s in current samples; this meets the MVP frame decode target with the pinned local Clang preset. The generic `build/release` tree sampled lower on this host after full rebuild.
+- Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1241.36 MiB/s decode throughput, 47.4 us p99 in-memory 1 KiB message latency with plugin work deferred, 256 active channels, 5.23047 MiB process RSS, about 6.75M frame fuzz exec/s, and 11.63k connection-event exec/s.
 - Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` passed memory probe repetitions.
 - Static analysis: Not executed locally.
 - Source checks: `rg -n "TODO|FIXME|unimplemented|abort\(" --glob "!docs/IMPLEMENTATION_STATUS.md" .` returned no matches.

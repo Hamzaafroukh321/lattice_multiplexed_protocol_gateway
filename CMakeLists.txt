@@ -40,8 +40,12 @@ lattice_apply_sanitizers(lattice)
 
 add_executable(lattice_bench tools/lattice_bench.cpp)
 target_link_libraries(lattice_bench PRIVATE lattice_core)
+if(WIN32)
+  target_link_libraries(lattice_bench PRIVATE Psapi)
+endif()
 lattice_apply_warnings(lattice_bench)
 lattice_apply_sanitizers(lattice_bench)
+add_test(NAME lattice_bench_acceptance COMMAND lattice_bench)
 
 add_executable(lattice_tests
   tests/unit/frame_tests.cpp
