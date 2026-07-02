@@ -16,6 +16,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - ACK payload canonicalization, resume-window rejection, retained resume suffix replay, and generation-tagged timer cancellation.
 - Bounded outbound scheduling, control priority, and per-channel data ordering.
 - Partial write retention for data and control queues.
+- Sustained one-byte backpressure drains preserve exact data stream.
 - Deterministic trace serialization/parsing and canonical replay summary verification.
 - Published LTX/1 compatibility fixture replay verification.
 - CLI memory bridge route smoke.

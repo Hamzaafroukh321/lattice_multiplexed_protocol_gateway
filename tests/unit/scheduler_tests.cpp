@@ -88,10 +88,35 @@ static void PartialControlDrainsBeforeDataTail() {
   CHECK(batch[1].encoded == Bytes({'d'}));
 }
 
+static void SustainedBackpressurePreservesByteStream() {
+  OutboundScheduler scheduler(4096U);
+  Bytes expected;
+  for (std::uint32_t sequence = 1U; sequence <= 64U; ++sequence) {
+    Bytes bytes{
+        static_cast<std::uint8_t>('A' + (sequence % 26U)),
+        static_cast<std::uint8_t>('a' + (sequence % 26U)),
+        static_cast<std::uint8_t>('0' + (sequence % 10U))};
+    expected.insert(expected.end(), bytes.begin(), bytes.end());
+    REQUIRE_OK(scheduler.enqueue(bytes_item(OutboundPriority::data, 9U, sequence,
+                                            std::move(bytes))));
+  }
+
+  Bytes actual;
+  while (!scheduler.empty()) {
+    auto batch = scheduler.drain(1U);
+    CHECK(batch.size() == 1U);
+    CHECK(batch[0].encoded.size() == 1U);
+    actual.push_back(batch[0].encoded[0]);
+  }
+  CHECK(actual == expected);
+}
+
 void register_scheduler_tests() {
   add_test("SchedulerBoundsQueues", &SchedulerBoundsQueues);
   add_test("ControlDrainsBeforeData", &ControlDrainsBeforeData);
   add_test("PerChannelOrderUnderPriority", &PerChannelOrderUnderPriority);
   add_test("PartialWriteRetainsLease", &PartialWriteRetainsLease);
   add_test("PartialControlDrainsBeforeDataTail", &PartialControlDrainsBeforeDataTail);
+  add_test("SustainedBackpressurePreservesByteStream",
+           &SustainedBackpressurePreservesByteStream);
 }

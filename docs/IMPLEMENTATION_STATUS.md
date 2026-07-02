@@ -18,7 +18,6 @@ LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered s
 
 Next source tickets:
 
-- Add long-running backpressure fixtures.
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
