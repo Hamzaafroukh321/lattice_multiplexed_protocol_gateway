@@ -18,7 +18,7 @@ LAT-018 advanced: a bounded `ThreadedExecutor` now runs per-shard worker queues 
 
 Next source tickets:
 
-- Run supported TSan and longer soak/performance suites.
+- Extend model/performance stress coverage beyond the current smoke and 5000-iteration soak.
 
 ## Completed Modules
 
@@ -49,8 +49,8 @@ Next source tickets:
 
 ## Known Blockers
 
-- TSan is unsupported by the available Windows Clang target: `clang++: error: unsupported option '-fsanitize=thread' for target 'x86_64-pc-windows-msvc'`.
-- Linux Docker TSan builds with GCC 13.3, but every TSan executable exits before tests with `FATAL: ThreadSanitizer: unexpected memory mapping`, so TSan runtime verification still needs a compatible host/runtime.
+- Windows Clang still cannot build TSan: `clang++: error: unsupported option '-fsanitize=thread' for target 'x86_64-pc-windows-msvc'`.
+- Docker/Linux TSan requires ASLR disabled for the test process; `setarch x86_64 -R ctest --test-dir build/linux-tsan --output-on-failure` passed.
 - LLVM installation through `winget install LLVM.LLVM` was cancelled by user/UAC, but usable LLVM binaries were already present under `C:\Program Files\LLVM`.
 
 ## Build And Test Status
@@ -60,7 +60,7 @@ Next source tickets:
 - Unit/integration and CLI CTest smokes: Passed in Debug, Release, ASan/UBSan Release, local Clang Release, local Clang Debug, and Ubuntu 24.04 Docker Debug.
 - Fuzz smoke: Passed in Debug and ASan/UBSan Release for `lattice_frame_fuzz`, `lattice_connection_event_fuzz`, and `lattice_gateway_trace_fuzz`.
 - ASan/UBSan: Release build and tests passed. Debug ASan hit Windows debug CRT/ASan runtime mismatch during shutdown.
-- TSan: Blocked on Windows Clang target support and Docker/Linux TSan runtime memory mapping failure.
+- TSan: Passed under Ubuntu 24.04 Docker with GCC 13.3 using `setarch x86_64 -R`; Windows Clang target remains unsupported for TSan.
 - Benchmark: `build/local-clang-release/lattice_bench.exe` measured 1189.73, 1186.52, 1278.26, and 1306.83 MiB/s in current samples; this meets the MVP frame decode target with the pinned local Clang preset. The generic `build/release` tree sampled lower on this host after full rebuild.
 - Soak: `scripts/soak.ps1 -BuildDir build/debug -Iterations 5000` passed memory probe repetitions.
 - Static analysis: Not executed locally.

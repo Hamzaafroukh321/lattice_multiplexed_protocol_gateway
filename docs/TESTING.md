@@ -36,6 +36,12 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - HELLO limit intersection and schema mismatch rejection.
 - End-to-end memory negotiation and echo plugin delivery.
 
+Linux TSan verification in Docker needs ASLR disabled for the test process:
+
+```powershell
+docker run --rm --security-opt seccomp=unconfined --cap-add SYS_PTRACE -v "${PWD}:/work" -w /work ubuntu:24.04 bash -lc "apt-get update >/dev/null && DEBIAN_FRONTEND=noninteractive apt-get install -y cmake ninja-build g++ util-linux >/dev/null && setarch x86_64 -R ctest --test-dir build/linux-tsan --output-on-failure"
+```
+
 Run:
 
 ```powershell

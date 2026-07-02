@@ -37,3 +37,4 @@
 - Added POSIX Unix bridge event loop over negotiated endpoints.
 - Added bounded threaded executor shard runtime.
 - Added Linux POSIX socket bridge pump smoke coverage and extended memory probe soak evidence.
+- Verified Linux TSan under Docker with ASLR disabled for the test process.

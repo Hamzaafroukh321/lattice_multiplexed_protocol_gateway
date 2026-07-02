@@ -45,7 +45,7 @@ Local note: CMake and a C++ compiler were not available on this machine's PATH d
 - Stale generation mutation: `ChannelTable` validates compound IDs and rejects old generations.
 - Credit leaks: `FlowAccount` exposes conservation tests and checked overflow behavior.
 - Schema mismatch: gateway forwarding requires exact plugin family and schema hash.
-- TSan remains blocked by the available Windows target and Docker/Linux TSan runtime behavior.
+- TSan remains unsupported on Windows Clang but passes under Ubuntu Docker when run with `setarch x86_64 -R`.
 
 ## Definition Of Done
 
@@ -70,5 +70,5 @@ MVP done requires green builds/tests/fuzz smoke on a C++20 toolchain, plus imple
 - [x] Selective ACK, RESUME, keepalive, retransmission timers.
 - [x] Threaded runtime execution primitive.
 - [x] POSIX socket bridge pump verification under Linux Docker.
-- [ ] TSan on a supported non-MSVC target.
+- [x] TSan on a supported non-MSVC target via Ubuntu Docker and `setarch x86_64 -R`.
 - [x] 5000-iteration memory probe soak and pinned local Clang frame benchmark.
