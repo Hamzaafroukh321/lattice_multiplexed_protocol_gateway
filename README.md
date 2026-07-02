@@ -2,7 +2,7 @@
 
 Lattice is a C++20 local gateway core for the LTX/1 multiplexed binary protocol. It negotiates capabilities, opens generation-tagged channels, reassembles fragmented messages, enforces byte-credit windows, dispatches negotiated plugin families, records replay bytes, and forwards gateway traffic only through schema-safe opaque routes or typed translators.
 
-Maturity: hardening implementation. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory and Unix negotiation CLI, executor-backed plugin dispatch path, stable shard routing, tests, fuzz smoke targets, compatibility fixture, and release decode benchmark are present. Full-version items such as live Unix bridge data-plane forwarding, threaded loop runtime, TSan stress, and long soaks remain in progress.
+Maturity: hardening implementation. The memory transport, Unix transport adapter, frame codec, HELLO negotiation, generated channels, reassembly, echo plugin, replay window, retained RESUME continuation, gateway route table, memory and Unix CLI paths, executor-backed plugin dispatch path, stable shard routing, tests, fuzz smoke targets, compatibility fixture, and release decode benchmark are present. Full-version items such as threaded loop runtime, POSIX socket runtime verification, TSan stress, and long soaks remain in progress.
 
 ## Build
 

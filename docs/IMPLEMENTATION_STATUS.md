@@ -8,18 +8,19 @@ Generated from this environment: 2026-06-26T16:33:55.7674858+01:00.
 
 ## Current Phase
 
-Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI negotiation, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
+Phase 6/7: hardening, fuzzing, and documentation. The compact production implementation now builds with local CMake 4.3.3, Ninja, and Clang 22.1.8. Scheduler, timer, trace, ACK, RESUME-window, PING/PONG, retry, drain, replay snapshot storage, Unix transport and socket CLI loop, gateway route/data-plane pump, executor-backed plugin dispatch, and plugin lease primitives are present.
 
 ## Last Completed Ticket
 
-LAT-019 advanced: replay snapshots now have a durable temp-file publish/load boundary, engine startup import advances the next frame sequence safely, and the CLI memory probe exercises load-before-start plus save-after-negotiation.
+LAT-017/LAT-026 advanced: Unix socket bridge now negotiates both endpoints and enters a POSIX `select()` loop that feeds production `ConnectionEngine` instances and forwards delivered messages through the gateway data-plane pump.
 
 ## Next Actionable Ticket
 
 Next source tickets:
 
-- Wrap the gateway data-plane pump in a continuous Unix socket event loop.
-- Add long-running daemon snapshot rotation policy if a daemon mode is introduced.
+- Add threaded runtime execution beyond deterministic executor sharding.
+- Run POSIX live socket bridge smoke on a Linux host.
+- Run supported TSan and longer soak/performance suites.
 
 ## Completed Modules
 
@@ -40,13 +41,13 @@ Next source tickets:
 - `DeterministicExecutor`: bounded task admission, deterministic drain order, cancellation, shard validation, and stable connection-to-shard routing.
 - `ConnectionEngine`: deterministic single-loop HELLO/OPEN/DATA/CREDIT/ACK/PING/PONG/RESUME/HALF_CLOSE/RESET/GOAWAY dispatch, retained-frame RESUME continuation, pre-start replay snapshot load/export with next-sequence restoration, optional executor-backed plugin dispatch, and PONG deadline liveness timeout.
 - `UnixTransport`/`UnixListener`: POSIX connect/socketpair/read/write and bind/listen/accept adapters with stable transport errors on Windows.
-- CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/bridge route validation, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
+- CLI `probe`, memory `bridge`, memory snapshot load/save, Unix socket `probe`/one-connection `serve`/continuous bridge loop, route-policy parsing, `dump`, canonical `replay` verification, and fixture generation commands plus fuzz smoke targets.
 - Compatibility fixtures: `fixtures/ltx1/memory_hello.trace` publishes deterministic LTX/1 HELLO bytes; `fixtures/ltx1/memory_bridge.policy` exercises route-policy parsing.
 
 ## In Progress Modules
 
 - Keepalive/retransmission timers, in-process retained RESUME continuation, replay snapshot serialization, engine pre-start snapshot loading, and CLI memory snapshot storage are integrated.
-- Continuous CLI Unix socket event-loop pumping remains incomplete; the gateway data-plane pump, POSIX listener/transport primitives, Unix negotiation commands, portable memory bridge, and policy-file parsing are implemented.
+- POSIX live socket bridge runtime smoke is not locally executable on this Windows host; the loop compiles and Windows unsupported behavior is covered.
 
 ## Known Blockers
 
@@ -70,7 +71,7 @@ Next source tickets:
 
 - ADR-0001 records a compact MVP implementation with memory transport and deterministic single-loop state.
 - ADR-0002 records static C++ plugin registration instead of dynamic code loading.
-- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while continuous socket event-loop forwarding remains a documented full-version gap.
+- ADR-0003 records memory transport plus POSIX Unix transport/listener API behavior; Windows Unix CLI invocations return stable unsupported failures while POSIX live-loop runtime smoke remains unverified locally.
 
 ## Last Verified Commit
 

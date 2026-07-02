@@ -28,10 +28,10 @@ Validation: `SchemaHashMismatchRejectsOpen` and gateway policy reject schema mis
 
 Context: The MVP permits memory or Unix transports, while this environment is Windows for verification and POSIX Unix-domain sockets are not available at runtime.
 
-Decision: Implement deterministic memory transport and POSIX Unix-domain transport/listener adapters. Windows builds expose the same API but return stable transport errors for Unix socket operations. The CLI exposes `probe --socket`, one-connection `serve --socket --plugin echo`, and `bridge --left --right --policy` negotiation/route-validation paths over those adapters.
+Decision: Implement deterministic memory transport and POSIX Unix-domain transport/listener adapters. Windows builds expose the same API but return stable transport errors for Unix socket operations. The CLI exposes `probe --socket`, one-connection `serve --socket --plugin echo`, and `bridge --left --right --policy` negotiation plus a POSIX `select()` bridge loop over those adapters.
 
 Alternatives considered: Windows named pipes or a stub that reports success. Reporting success would be misleading; named pipes are outside the spec's main platform.
 
-Consequences: Protocol correctness can be tested without OS socket timing, and POSIX hosts can exercise `UnixTransport::pair_for_test`, `connect_path`, `UnixListener::bind_path`/`accept_one`, and the socket CLI negotiation surface. Full continuous bridge data-plane forwarding still needs channel-pump lifecycle work.
+Consequences: Protocol correctness can be tested without OS socket timing, and POSIX hosts can exercise `UnixTransport::pair_for_test`, `connect_path`, `UnixListener::bind_path`/`accept_one`, and the socket CLI loop. Windows verification covers portable unsupported behavior; POSIX live-loop runtime smoke remains environment-dependent.
 
 Validation: `TwoMemoryTransportsCompleteHello` covers the memory path. `UnixTransportPairRoundTripOrPortableError` and `UnixListenerBindOrPortableError` cover POSIX primitives or Windows unsupported behavior. CTest covers memory CLI commands and Windows unsupported Unix CLI commands.

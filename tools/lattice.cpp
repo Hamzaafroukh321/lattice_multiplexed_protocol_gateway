@@ -3,6 +3,12 @@
 #include "lattice/replay_store.hpp"
 #include "lattice/trace.hpp"
 
+#ifndef _WIN32
+#include <sys/select.h>
+
+#include <cerrno>
+#endif
+
 #include <algorithm>
 #include <cctype>
 #include <fstream>
@@ -38,6 +44,16 @@ struct UnixBridgeArgs {
   std::string left;
   std::string right;
   std::string policy;
+};
+
+struct BridgeRuntime {
+  lattice::ConnectionEngine& left;
+  lattice::ConnectionEngine& right;
+  lattice::UnixTransport& left_transport;
+  lattice::UnixTransport& right_transport;
+  lattice::Gateway& gateway;
+  std::size_t left_events{0};
+  std::size_t right_events{0};
 };
 
 int unix_failure_exit() {
@@ -246,6 +262,120 @@ lattice::Result<void> negotiate_unix_peer(lattice::UnixTransport& transport,
     }
   }
   return {};
+}
+
+#ifndef _WIN32
+lattice::Result<void> write_and_feed(lattice::UnixTransport& transport,
+                                     const std::vector<lattice::Bytes>& chunks) {
+  return write_all(transport, chunks);
+}
+
+lattice::Result<void> forward_new_events(lattice::ConnectionEngine& from,
+                                         lattice::ConnectionEngine& to,
+                                         lattice::UnixTransport& to_transport,
+                                         lattice::Gateway& gateway,
+                                         std::size_t& cursor) {
+  const auto& events = from.events();
+  while (cursor < events.size()) {
+    const lattice::ConnectionEvent& event = events[cursor++];
+    if (event.kind != lattice::ConnectionEvent::Kind::message_delivered) {
+      continue;
+    }
+    auto route = gateway.find_route(event.channel);
+    if (!route) {
+      continue;
+    }
+    auto forwarded = gateway.bridge_to_connection(from.capabilities().value(),
+                                                  to.capabilities().value(), to,
+                                                  event.channel, event.payload);
+    if (!forwarded) {
+      return forwarded.error();
+    }
+    auto written = write_and_feed(to_transport, forwarded.value());
+    if (!written) {
+      return written.error();
+    }
+  }
+  return {};
+}
+
+lattice::Result<void> read_bridge_side(lattice::UnixTransport& from_transport,
+                                       lattice::ConnectionEngine& from,
+                                       lattice::UnixTransport& to_transport,
+                                       lattice::ConnectionEngine& to,
+                                       lattice::Gateway& gateway,
+                                       std::size_t& event_cursor) {
+  auto bytes = from_transport.read_some(lattice::kDefaultMaxFrame);
+  if (!bytes) {
+    return bytes.error();
+  }
+  if (bytes.value().empty()) {
+    return lattice::make_error(lattice::ErrorScope::transport,
+                               lattice::ErrorCode::transport_error,
+                               lattice::CloseAction::close_connection,
+                               "bridge peer closed");
+  }
+  auto produced = from.receive(bytes.value(), false);
+  if (!produced) {
+    return produced.error();
+  }
+  auto responses = write_and_feed(from_transport, produced.value());
+  if (!responses) {
+    return responses.error();
+  }
+  return forward_new_events(from, to, to_transport, gateway, event_cursor);
+}
+#endif
+
+lattice::Result<void> run_unix_bridge_loop(BridgeRuntime runtime) {
+#ifdef _WIN32
+  (void)runtime;
+  return lattice::make_error(lattice::ErrorScope::transport, lattice::ErrorCode::transport_error,
+                             lattice::CloseAction::close_connection,
+                             "Unix-domain bridge loop is not available on this platform");
+#else
+  for (;;) {
+    fd_set readfds;
+    FD_ZERO(&readfds);
+    const int left_fd = runtime.left_transport.native_handle();
+    const int right_fd = runtime.right_transport.native_handle();
+    if (left_fd < 0 || right_fd < 0) {
+      return lattice::make_error(lattice::ErrorScope::transport,
+                                 lattice::ErrorCode::transport_error,
+                                 lattice::CloseAction::close_connection,
+                                 "bridge transport closed");
+    }
+    FD_SET(left_fd, &readfds);
+    FD_SET(right_fd, &readfds);
+    const int max_fd = std::max(left_fd, right_fd);
+    const int ready = ::select(max_fd + 1, &readfds, nullptr, nullptr, nullptr);
+    if (ready < 0) {
+      if (errno == EINTR) {
+        continue;
+      }
+      return lattice::make_error(lattice::ErrorScope::transport,
+                                 lattice::ErrorCode::transport_error,
+                                 lattice::CloseAction::close_connection,
+                                 "bridge select failed");
+    }
+    if (FD_ISSET(left_fd, &readfds)) {
+      auto result = read_bridge_side(runtime.left_transport, runtime.left,
+                                     runtime.right_transport, runtime.right,
+                                     runtime.gateway, runtime.left_events);
+      if (!result) {
+        return result.error();
+      }
+    }
+    if (FD_ISSET(right_fd, &readfds)) {
+      auto result = read_bridge_side(runtime.right_transport, runtime.right,
+                                     runtime.left_transport, runtime.left,
+                                     runtime.gateway, runtime.right_events);
+      if (!result) {
+        return result.error();
+      }
+    }
+  }
+#endif
 }
 
 lattice::Result<void> load_snapshot_if_present(lattice::ConnectionEngine& engine,
@@ -556,6 +686,12 @@ int bridge_unix(const UnixBridgeArgs& args) {
             << " destination=" << bridged.value().destination.str()
             << " family=" << bridged.value().family_id
             << " bytes=" << bridged.value().payload.size() << '\n';
+  BridgeRuntime runtime{left, right, left_transport.value(), right_transport.value(), gateway,
+                        left.events().size(), right.events().size()};
+  auto loop = run_unix_bridge_loop(runtime);
+  if (!loop) {
+    return print_error(loop.error(), unix_failure_exit());
+  }
   return 0;
 }
 

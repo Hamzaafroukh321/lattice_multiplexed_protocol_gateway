@@ -48,6 +48,7 @@ class UnixTransport {
   [[nodiscard]] Result<Bytes> read_some(std::size_t max_bytes);
   void close();
   [[nodiscard]] bool valid() const { return fd_ >= 0; }
+  [[nodiscard]] int native_handle() const { return fd_; }
 
  private:
   int fd_{-1};
