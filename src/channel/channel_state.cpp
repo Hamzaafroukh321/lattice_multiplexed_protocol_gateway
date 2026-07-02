@@ -222,6 +222,19 @@ Result<void> ChannelTable::activate(ChannelId id) {
   return {};
 }
 
+Result<std::uint32_t> ChannelTable::reserve_send_sequence(ChannelId id) {
+  ChannelSlot* slot = find(id);
+  if (slot == nullptr) {
+    return channel_error(ErrorCode::stale_generation, id, "send sequence targets stale channel");
+  }
+  if (slot->next_send_seq == std::numeric_limits<std::uint32_t>::max()) {
+    return channel_error(ErrorCode::resource_limit, id, "send sequence would wrap");
+  }
+  const std::uint32_t sequence = slot->next_send_seq;
+  ++slot->next_send_seq;
+  return sequence;
+}
+
 Result<void> ChannelTable::half_close(ChannelId id, Direction direction) {
   ChannelSlot* slot = find(id);
   if (slot == nullptr) {

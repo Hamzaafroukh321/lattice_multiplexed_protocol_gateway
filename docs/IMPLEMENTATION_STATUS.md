@@ -18,7 +18,7 @@ LAT-027/LAT-028/LAT-025/LAT-036 advanced: gateway routes now bridge registered s
 
 Next source tickets:
 
-- Add long-running sequence wrap, backpressure, and allocation-failure fixtures.
+- Add long-running backpressure and allocation-failure fixtures.
 - Implement Unix endpoint serve/bridge CLI mode and a route-policy file parser.
 - Replace ad hoc explicit tool paths with a documented local toolchain preset.
 
@@ -27,7 +27,7 @@ Next source tickets:
 - `FrameCodec`: LTX1 framing, CRC32C with cached SSE4.2 acceleration and portable slicing-by-8 fallback, canonical ULEB128, sorted TLVs, streaming decode.
 - `FrameCodec` compatibility: unknown optional extensions are accepted, unknown required extensions reject with a stable error.
 - `Negotiator`: HELLO encode/decode, version/limit/feature/plugin schema intersection, transcript hash.
-- `ChannelTable`: generated channels, generations, tombstones, remote OPEN acceptance, half-close/reset.
+- `ChannelTable`: generated channels, generations, tombstones, send-sequence wrap rejection, remote OPEN acceptance, half-close/reset.
 - `Reassembler`: bounded non-overlapping fragments, retained sparse-fragment budget enforcement, retained-byte cleanup on reset, and exact complete-message delivery.
 - `FlowAccount`: checked reserve/release/grant and overflow/underflow errors.
 - `ReplayWindow`: retained encoded frames, ACK-range retirement, retry bytes, and exact retained suffix lookup for RESUME.

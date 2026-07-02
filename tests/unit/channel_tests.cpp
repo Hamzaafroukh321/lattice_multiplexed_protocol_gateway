@@ -35,6 +35,20 @@ static void ChannelGenerationWrapRejectsReuse() {
   CHECK(rejected.error().code == ErrorCode::resource_limit);
 }
 
+static void SendSequenceWrapRejectsBeforeZero() {
+  ChannelTable table(1U, 1024U, 4096U);
+  auto id = table.allocate();
+  REQUIRE_OK(id);
+  REQUIRE_OK(table.activate(id.value()));
+  ChannelSlot* slot = table.find(id.value());
+  CHECK(slot != nullptr);
+  slot->next_send_seq = 0xFFFFFFFFU;
+  auto rejected = table.reserve_send_sequence(id.value());
+  CHECK(!rejected);
+  CHECK(rejected.error().code == ErrorCode::resource_limit);
+  CHECK(slot->next_send_seq == 0xFFFFFFFFU);
+}
+
 static void TwoFragmentMessageDelivery() {
   Reassembler reassembler(64U);
   ChannelId id{3U, 1U};
@@ -102,6 +116,7 @@ static void HalfCloseDirectionsIndependent() {
 void register_channel_tests() {
   add_test("ChannelGenerationIncrements", &ChannelGenerationIncrements);
   add_test("ChannelGenerationWrapRejectsReuse", &ChannelGenerationWrapRejectsReuse);
+  add_test("SendSequenceWrapRejectsBeforeZero", &SendSequenceWrapRejectsBeforeZero);
   add_test("TwoFragmentMessageDelivery", &TwoFragmentMessageDelivery);
   add_test("ConflictingOverlapResets", &ConflictingOverlapResets);
   add_test("ConflictingOverlapReleasesRetainedBytes",

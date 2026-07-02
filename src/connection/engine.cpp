@@ -200,7 +200,12 @@ Result<std::vector<Bytes>> ConnectionEngine::send(ChannelId id, std::span<const 
     return reserve.error();
   }
   std::vector<Bytes> out;
-  const std::uint32_t sequence = slot->next_send_seq++;
+  auto reserved_sequence = channels_->reserve_send_sequence(id);
+  if (!reserved_sequence) {
+    (void)slot->flow.release(payload.size());
+    return reserved_sequence.error();
+  }
+  const std::uint32_t sequence = reserved_sequence.value();
   const std::size_t max_fragment = std::max<std::size_t>(1U, capabilities_->max_frame / 2U);
   for (std::size_t offset = 0; offset < payload.size(); offset += max_fragment) {
     const std::size_t take = std::min(max_fragment, payload.size() - offset);

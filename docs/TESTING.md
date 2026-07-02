@@ -6,6 +6,7 @@ The test executable `lattice_tests` contains unit and integration coverage for:
 - CRC mismatch rejection.
 - Canonical extension ordering.
 - Channel generation increments, wrap rejection, and stale ID rejection.
+- Send sequence wrap rejection before zero.
 - Fragment completion and conflicting overlap.
 - Sparse incomplete-fragment retained budget and cleanup after overlap reset.
 - Half-close direction independence.

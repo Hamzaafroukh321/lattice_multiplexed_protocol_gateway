@@ -80,6 +80,7 @@ class ChannelTable {
   [[nodiscard]] Result<ChannelId> allocate();
   [[nodiscard]] Result<void> accept_remote(ChannelId id);
   [[nodiscard]] Result<void> activate(ChannelId id);
+  [[nodiscard]] Result<std::uint32_t> reserve_send_sequence(ChannelId id);
   [[nodiscard]] Result<void> half_close(ChannelId id, Direction direction);
   [[nodiscard]] Result<void> reset(ChannelId id);
   [[nodiscard]] Result<void> retire_tombstone(ChannelId id);

@@ -22,3 +22,4 @@
 - Added outbound scheduler partial-write tail retention for control and data queues.
 - Added sparse-fragment retained budget enforcement and retained-byte cleanup on reassembly reset.
 - Added explicit channel generation wrap rejection coverage.
+- Added send sequence wrap rejection before `uint32_t` rollover.
