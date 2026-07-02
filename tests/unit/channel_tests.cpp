@@ -18,6 +18,23 @@ static void ChannelGenerationIncrements() {
   CHECK(table.find(first.value()) == nullptr);
 }
 
+static void ChannelGenerationWrapRejectsReuse() {
+  ChannelTable table(1U, 1024U, 4096U);
+  ChannelId last;
+  for (std::uint16_t i = 0; i < 255U; ++i) {
+    auto id = table.allocate();
+    REQUIRE_OK(id);
+    last = id.value();
+    REQUIRE_OK(table.activate(id.value()));
+    REQUIRE_OK(table.reset(id.value()));
+    REQUIRE_OK(table.retire_tombstone(id.value()));
+  }
+  CHECK(last.generation == 255U);
+  auto rejected = table.allocate();
+  CHECK(!rejected);
+  CHECK(rejected.error().code == ErrorCode::resource_limit);
+}
+
 static void TwoFragmentMessageDelivery() {
   Reassembler reassembler(64U);
   ChannelId id{3U, 1U};
@@ -84,6 +101,7 @@ static void HalfCloseDirectionsIndependent() {
 
 void register_channel_tests() {
   add_test("ChannelGenerationIncrements", &ChannelGenerationIncrements);
+  add_test("ChannelGenerationWrapRejectsReuse", &ChannelGenerationWrapRejectsReuse);
   add_test("TwoFragmentMessageDelivery", &TwoFragmentMessageDelivery);
   add_test("ConflictingOverlapResets", &ConflictingOverlapResets);
   add_test("ConflictingOverlapReleasesRetainedBytes",
